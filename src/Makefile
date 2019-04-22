@@ -1,7 +1,7 @@
 #******************************************************************************#
 #*                                                                            *#
 #* src/Makefile                                                               *#
-#*                                                                 2019/04/21 *#
+#*                                                                 2019/04/22 *#
 #* Copyright (C) 2019 Mochi.                                                  *#
 #*                                                                            *#
 #******************************************************************************#
@@ -14,12 +14,12 @@ PROG = drv-ns16550
 # ソースコード
 SRCS = main.c
 
-# リリースディレクトリ
-RELEASE_DIR = ../release
 # ビルドディレクトリ
 BUILD_DIR   = ../build
+# リリースディレクトリ
+RELEASE_DIR = $(BUILD_DIR)/release
 # オブジェクトファイル生成先ディレクトリ
-OBJ_DIR     = $(BUILD_DIR)/obj
+OBJ_DIR     = $(BUILD_DIR)/obj/$(PROG)
 
 # Cフラグ
 CFLAGS  = -ffreestanding
@@ -30,11 +30,17 @@ CFLAGS += -static
 CFLAGS += -masm=intel
 CFLAGS += -Iinclude
 CFLAGS += -I$(BUILD_DIR)/include
+ifdef BASE_CFLAGS
+CFLAGS += $(BASE_CFLAGS)
+endif
 
 # LDフラグ
 LDFLAGS  = -Tdrv-ns16550.lds
 LDFLAGS += -melf_i386
 LDFLAGS += -L$(BUILD_DIR)/lib
+ifdef BASE_LDFLAGS
+LDFLAGS += $(BASE_LDFLAGS)
+endif
 
 # ライブラリ
 LIBS  = -lmlog

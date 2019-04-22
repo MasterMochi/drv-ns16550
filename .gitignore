@@ -1,5 +1,4 @@
-build/obj/*
-build/drv-ns16550
-release/drv-ns16550
+build/obj
+build/release/drv-ns16550
 tags
 !.gitkeep
