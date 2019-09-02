@@ -1,7 +1,7 @@
 #******************************************************************************#
 #*                                                                            *#
 #* src/Makefile                                                               *#
-#*                                                                 2019/04/22 *#
+#*                                                                 2019/09/02 *#
 #* Copyright (C) 2019 Mochi.                                                  *#
 #*                                                                            *#
 #******************************************************************************#
@@ -12,7 +12,11 @@
 PROG = drv-ns16550
 
 # ソースコード
-SRCS = main.c
+SRCS  = main.c
+SRCS += Buffer.c
+SRCS += Ctrl.c
+SRCS += Receive.c
+SRCS += Transmit.c
 
 # ビルドディレクトリ
 BUILD_DIR   = ../build
@@ -28,6 +32,7 @@ CFLAGS += -m32
 CFLAGS += -fno-pic
 CFLAGS += -static
 CFLAGS += -masm=intel
+CFLAGS += -DDEBUG_LOG_LV=2
 CFLAGS += -Iinclude
 CFLAGS += -I$(BUILD_DIR)/include
 ifdef BASE_CFLAGS
@@ -46,7 +51,7 @@ endif
 LIBS  = -lmlog
 LIBS += -lmvfs
 LIBS += -lc
-LIBS += -lMk
+LIBS += -lmk
 LIBS += -lMLib
 
 
