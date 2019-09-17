@@ -1,7 +1,7 @@
 /******************************************************************************/
 /*                                                                            */
 /* src/main.c                                                                 */
-/*                                                                 2019/09/02 */
+/*                                                                 2019/09/05 */
 /* Copyright (C) 2019 Mochi.                                                  */
 /*                                                                            */
 /******************************************************************************/
@@ -54,9 +54,6 @@ typedef struct {
     MkPid_t           pid;          /**< PID                */
     uint32_t          globalFd;     /**< グローバルFD       */
     char              *pPath;       /**< ファイルパス       */
-    char              *pReadBuffer; /**< 読込みバッファ     */
-    uint32_t          readIdx;      /**< 読込みインデックス */
-    size_t            readSize;     /**< 読込みサイズ       */
 } mngInfo_t;
 
 /* 状態遷移タスクパラメータ(VfsOpen) */
@@ -104,7 +101,7 @@ static MLibState_t DoTask0201( void *pArg );
 static MLibState_t DoTask0202( void *pArg );
 static MLibState_t DoTask0203( void *pArg );
 static MLibState_t DoTask0204( void *pArg );
-static MLibState_t DoTask0305( void *pArg );
+static MLibState_t DoTask0205( void *pArg );
 
 /* グローバルFD->COM番号変換 */
 static NS16550ComNo_t ConvertGlobalFdToComNo( uint32_t globalFd );
@@ -146,6 +143,9 @@ static void SendVfsReadResp( uint32_t globalFd,
                              int32_t  result,
                              void     *pBuffer,
                              size_t   size      );
+/* VfsReady通知送信 */
+static void SendVfsReadyNtc( uint32_t globalFd,
+                             uint32_t rw        );
 /* VfsWrite応答送信 */
 static void SendVfsWriteResp( uint32_t globalFd,
                               int32_t  result,
@@ -161,25 +161,20 @@ mngInfo_t gMngInfo[ FILE_NUM ];
 /** 状態遷移表 */
 static MLibStateTransition_t gStt[] =
     {
-        /*-----------+----------------+------------+---------------------------------*/
-        /* 状態      | イベント       | タスク     | 遷移先状態                      */
-        /*-----------+----------------+------------+---------------------------------*/
-        { STATE_INIT , EVENT_VFSOPEN  , DoTask0101 , { STATE_OPEN , 0              } },
-        { STATE_INIT , EVENT_RX_NTC   , NULL       , { STATE_INIT , 0              } },
-        /*-----------+----------------+------------+---------------------------------*/
-        /* 状態      | イベント       | タスク     | 遷移先状態                      */
-        /*-----------+----------------+------------+---------------------------------*/
-        { STATE_OPEN , EVENT_VFSOPEN  , DoTask0201 , { STATE_OPEN , 0              } },
-        { STATE_OPEN , EVENT_VFSREAD  , DoTask0202 , { STATE_OPEN , STATE_READ , 0 } },
-        { STATE_OPEN , EVENT_VFSWRITE , DoTask0203 , { STATE_OPEN , 0              } },
-        { STATE_OPEN , EVENT_VFSCLOSE , DoTask0204 , { STATE_INIT , 0              } },
-        { STATE_OPEN , EVENT_RX_NTC   , NULL       , { STATE_OPEN , 0              } },
-        /*-----------+----------------+------------+---------------------------------*/
-        /* 状態      | イベント       | タスク     | 遷移先状態                      */
-        /*-----------+----------------+------------+---------------------------------*/
-        { STATE_READ , EVENT_VFSOPEN  , DoTask0201 , { STATE_READ , 0              } },
-        { STATE_READ , EVENT_RX_NTC   , DoTask0305 , { STATE_OPEN , STATE_READ , 0 } },
-        /*-----------+----------------+------------+---------------------------------*/
+        /*-----------+----------------+------------+--------------------*/
+        /* 状態      | イベント       | タスク     | 遷移先状態         */
+        /*-----------+----------------+------------+--------------------*/
+        { STATE_INIT , EVENT_VFSOPEN  , DoTask0101 , { STATE_OPEN , 0 } },
+        { STATE_INIT , EVENT_RX_NTC   , NULL       , { STATE_INIT , 0 } },
+        /*-----------+----------------+------------+--------------------*/
+        /* 状態      | イベント       | タスク     | 遷移先状態         */
+        /*-----------+----------------+------------+--------------------*/
+        { STATE_OPEN , EVENT_VFSOPEN  , DoTask0201 , { STATE_OPEN , 0 } },
+        { STATE_OPEN , EVENT_VFSREAD  , DoTask0202 , { STATE_OPEN , 0 } },
+        { STATE_OPEN , EVENT_VFSWRITE , DoTask0203 , { STATE_OPEN , 0 } },
+        { STATE_OPEN , EVENT_VFSCLOSE , DoTask0204 , { STATE_INIT , 0 } },
+        { STATE_OPEN , EVENT_RX_NTC   , DoTask0205 , { STATE_OPEN , 0 } }
+        /*-----------+----------------+------------+--------------------*/
     };
 
 /** 受信通知メッセージシーケンス番号 */
@@ -419,22 +414,19 @@ static MLibState_t DoTask0201( void *pArg )
 /**
  * @brief       タスク0202
  * @details     Open済み状態にてVfsReadイベントを入力した時に、受信バッファから
- *              データを読み込む。十分なデータが読み込めた場合は、VfsRead応答
- *              (成功)を送信し、読み込むデータが不足している場合は、受信待ち状
- *              態に遷移する。
+ *              データを読み込む。
  *
  * @param[in]   *pArg
  *
  * @return      遷移先状態を返す。
  * @retval      STATE_OPEN Open済み状態
- * @retval      STATE_READ Read待ち状態
  */
 /******************************************************************************/
 static MLibState_t DoTask0202( void *pArg )
 {
     bool                ret;        /* バッファ読込結果   */
     char                *pBuffer;   /* バッファ           */
-    uint32_t            *pReadIdx;  /* 読込みインデックス */
+    size_t              readSize;   /* 読込みサイズ       */
     stateParamVfsRead_t *pParam;    /* パラメータ         */
 
     DEBUG_LOG_FNC( "%s(): start.", __func__ );
@@ -443,7 +435,7 @@ static MLibState_t DoTask0202( void *pArg )
     ret      = false;
     pBuffer  = NULL;
     pParam   = ( stateParamVfsRead_t * ) pArg;
-    pReadIdx = &( gMngInfo[ pParam->comNo ].readIdx );
+    readSize = 0;
 
     /* バッファ作成 */
     pBuffer = malloc( pParam->size );
@@ -464,35 +456,28 @@ static MLibState_t DoTask0202( void *pArg )
         return STATE_OPEN;
     }
 
-    /* 管理情報設定 */
-    gMngInfo[ pParam->comNo ].pReadBuffer = pBuffer;
-    gMngInfo[ pParam->comNo ].readIdx     = 0;
-    gMngInfo[ pParam->comNo ].readSize    = pParam->size;
-
     /* 1byte毎に繰り返す */
-    while ( *pReadIdx < pParam->size ) {
+    while ( readSize < pParam->size ) {
         /* バッファ読込 */
         ret = BufferRead( pParam->comNo,
                           BUFFER_ID_RECEIVE,
-                          &pBuffer[ *pReadIdx ] );
+                          &pBuffer[ readSize ] );
 
         /* 読込み結果判定 */
         if ( ret == false ) {
             /* 失敗 */
-
-            DEBUG_LOG_FNC( "%s(): end.", __func__ );
-            return STATE_READ;
+            break;
         }
 
-        /* 読込みインデックス更新 */
-        ( *pReadIdx )++;
+        /* 読込みサイズ更新 */
+        readSize++;
     }
 
     /* VfsRead応答(成功)送信 */
     SendVfsReadResp( pParam->globalFd,
                      LIBMVFS_RET_SUCCESS,
                      pBuffer,
-                     pParam->size         );
+                     readSize             );
 
     /* バッファ解放 */
     free( pBuffer );
@@ -575,8 +560,7 @@ static MLibState_t DoTask0204( void *pArg )
     memset( &gMngInfo[ pParam->comNo ], 0, sizeof ( mngInfo_t ) );
 
     /* VfsClose応答(成功)送信 */
-    SendVfsCloseResp( pParam->globalFd,
-                      LIBMVFS_RET_SUCCESS );
+    SendVfsCloseResp( pParam->globalFd, LIBMVFS_RET_SUCCESS );
 
     DEBUG_LOG_FNC( "%s(): end.", __func__ );
     return STATE_INIT;
@@ -585,61 +569,27 @@ static MLibState_t DoTask0204( void *pArg )
 
 /******************************************************************************/
 /**
- * @brief       タスク0305
- * @details     Read待ち状態にて受信通知イベントを入力した時、受信バッファから
- *              データを読み込む。十分なデータが読み込めた場合は、VfsRead応答
- *              (成功)を送信し、読み込むデータが不足している場合は、受信待ち状
- *              態に遷移する。
+ * @brief       タスク0205
+ * @details     Open済み状態にて受信通知イベントを入力した時、仮想ファイルサー
+ *              バにVfsReady通知を送信する。
  *
  * @param[in]   *pArg
  *
  * @return      遷移先状態を返す。
  * @retval      STATE_OPEN Open済み状態
- * @retval      STATE_READ Read待ち状態
  */
 /******************************************************************************/
-static MLibState_t DoTask0305( void *pArg )
+static MLibState_t DoTask0205( void *pArg )
 {
-    bool              ret;          /* バッファ読込結果   */
-    char              *pBuffer;     /* バッファ           */
-    uint32_t          *pReadIdx;    /* 読込みインデックス */
-    stateParamRxNtc_t *pParam;      /* パラメータ         */
+    stateParamRxNtc_t *pParam;  /* パラメータ */
 
     DEBUG_LOG_FNC( "%s(): start.", __func__ );
 
     /* 初期化 */
-    ret      = false;
-    pParam   = ( stateParamRxNtc_t * ) pArg;
-    pBuffer  = gMngInfo[ pParam->comNo ].pReadBuffer;
-    pReadIdx = &( gMngInfo[ pParam->comNo ].readIdx );
+    pParam = ( stateParamRxNtc_t * ) pArg;
 
-    /* 1byte毎に繰り返す */
-    while( *pReadIdx < gMngInfo[ pParam->comNo ].readSize ) {
-        /* バッファ読込 */
-        ret = BufferRead( pParam->comNo,
-                          BUFFER_ID_RECEIVE,
-                          &pBuffer[ *pReadIdx ] );
-
-        /* 読込み結果判定 */
-        if ( ret == false ) {
-            /* 失敗 */
-
-            DEBUG_LOG_FNC( "%s(): end.", __func__ );
-            return STATE_READ;
-        }
-
-        /* 読込みインデックス更新 */
-        ( *pReadIdx )++;
-    }
-
-    /* VfsRead応答(成功)送信 */
-    SendVfsReadResp( gMngInfo[ pParam->comNo ].globalFd,
-                     LIBMVFS_RET_SUCCESS,
-                     pBuffer,
-                     gMngInfo[ pParam->comNo ].readSize  );
-
-    /* バッファ解放 */
-    free( pBuffer );
+    /* VfsReady通知送信 */
+    SendVfsReadyNtc( gMngInfo[ pParam->comNo ].globalFd, MVFS_READY_READ );
 
     DEBUG_LOG_FNC( "%s(): end.", __func__ );
     return STATE_OPEN;
@@ -1405,6 +1355,7 @@ static void SendVfsReadResp( uint32_t globalFd,
     /* VfsRead応答送信 */
     retLibMvfs = LibMvfsSendVfsReadResp( globalFd,
                                          result,
+                                         0,/* TODO */
                                          pBuffer,
                                          size,
                                          &err      );
@@ -1415,6 +1366,47 @@ static void SendVfsReadResp( uint32_t globalFd,
 
         DEBUG_LOG_ERR(
             "LibMvfsSendVfsReadResp(): ret=%d, err=0x%X",
+            retLibMvfs,
+            err
+        );
+    }
+
+    DEBUG_LOG_FNC( "%s(): end.", __func__ );
+    return;
+}
+
+
+/******************************************************************************/
+/**
+ * @brief       VfsReady通知送信
+ * @details     MVFSにVfsReady通知を送信する。
+ *
+ * @param[in]   globalFd グローバルFD
+ * @param[in]   rw       RWフラグ
+ *                  - MVFS_READY_READ  Readレディ
+ *                  - MVFS_READY_WRITE Writeレディ
+ */
+/******************************************************************************/
+static void SendVfsReadyNtc( uint32_t globalFd,
+                             uint32_t rw        )
+{
+    uint32_t     err;           /* LibMvfs関数エラー */
+    LibMvfsRet_t retLibMvfs;    /* LibMvfs関数戻り値 */
+
+    DEBUG_LOG_TRC( "%s(): start. globalFd=%u, rw=%u", __func__, globalFd, rw );
+
+    /* 初期化 */
+    err        = LIBMVFS_ERR_NONE;
+    retLibMvfs = LIBMVFS_RET_FAILURE;
+
+    /* VfsReady通知送信 */
+    retLibMvfs = LibMvfsSendVfsReadyNtc( globalFd, rw, &err );
+
+    /* 送信結果判定 */
+    if ( retLibMvfs != LIBMVFS_RET_SUCCESS ) {
+        /* 失敗 */
+        DEBUG_LOG_ERR(
+            "LibMvfsSendVfsReadyNtc(): ret=%d, err=0x%X",
             retLibMvfs,
             err
         );
@@ -1467,6 +1459,7 @@ static void SendVfsWriteResp( uint32_t globalFd,
     /* VfsWrite応答送信 */
     retLibMvfs = LibMvfsSendVfsWriteResp( globalFd,
                                           result,
+                                          0,/* TODO */
                                           size,
                                           &err      );
 
