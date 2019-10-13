@@ -1,7 +1,7 @@
 /******************************************************************************/
 /*                                                                            */
 /* src/main.c                                                                 */
-/*                                                                 2019/09/05 */
+/*                                                                 2019/10/13 */
 /* Copyright (C) 2019 Mochi.                                                  */
 /*                                                                            */
 /******************************************************************************/
@@ -135,20 +135,23 @@ static void RecvMsgRxNtc( MkTaskId_t src,
                           size_t     size   );
 /* VfsClose応答送信 */
 static void SendVfsCloseResp( uint32_t globalFd,
-                              int32_t  result    );
+                              uint32_t result    );
 /* VfsOpen応答送信 */
-static void SendVfsOpenResp( int32_t  result );
+static void SendVfsOpenResp( uint32_t globalFd,
+                             uint32_t result    );
 /* VfsRead応答送信 */
 static void SendVfsReadResp( uint32_t globalFd,
-                             int32_t  result,
+                             uint32_t result,
+                             uint32_t ready,
                              void     *pBuffer,
                              size_t   size      );
 /* VfsReady通知送信 */
-static void SendVfsReadyNtc( uint32_t globalFd,
-                             uint32_t rw        );
+static void SendVfsReadyNtc( const char *pPath,
+                             uint32_t   rw      );
 /* VfsWrite応答送信 */
 static void SendVfsWriteResp( uint32_t globalFd,
-                              int32_t  result,
+                              uint32_t result,
+                              uint32_t ready,
                               size_t   size      );
 
 
@@ -368,7 +371,7 @@ static MLibState_t DoTask0101( void *pArg )
     gMngInfo[ pParam->comNo ].globalFd = pParam->globalFd;
 
     /* VfsOpen応答(成功)送信 */
-    SendVfsOpenResp( LIBMVFS_RET_SUCCESS );
+    SendVfsOpenResp( pParam->globalFd, LIBMVFS_RET_SUCCESS );
 
     DEBUG_LOG_FNC( "%s(): end.", __func__ );
     return STATE_OPEN;
@@ -400,7 +403,7 @@ static MLibState_t DoTask0201( void *pArg )
     pParam = ( stateParamVfsOpen_t * ) pArg;
 
     /* VfsOpen応答(失敗)送信 */
-    SendVfsOpenResp( LIBMVFS_RET_FAILURE );
+    SendVfsOpenResp( pParam->globalFd, LIBMVFS_RET_FAILURE );
 
     /* 自状態取得 */
     ret = MLibStateGet( &( gMngInfo[ pParam->comNo ].handle ), NULL );
@@ -427,6 +430,7 @@ static MLibState_t DoTask0202( void *pArg )
     bool                ret;        /* バッファ読込結果   */
     char                *pBuffer;   /* バッファ           */
     size_t              readSize;   /* 読込みサイズ       */
+    uint32_t            ready;      /* 読込レディ状態     */
     stateParamVfsRead_t *pParam;    /* パラメータ         */
 
     DEBUG_LOG_FNC( "%s(): start.", __func__ );
@@ -436,6 +440,9 @@ static MLibState_t DoTask0202( void *pArg )
     pBuffer  = NULL;
     pParam   = ( stateParamVfsRead_t * ) pArg;
     readSize = 0;
+
+    /* レデイ状態取得 */
+    ready = BufferGetReady( pParam->comNo, BUFFER_ID_RECEIVE );
 
     /* バッファ作成 */
     pBuffer = malloc( pParam->size );
@@ -449,6 +456,7 @@ static MLibState_t DoTask0202( void *pArg )
         /* VfsRead応答(失敗)送信 */
         SendVfsReadResp( pParam->globalFd,
                          LIBMVFS_RET_FAILURE,
+                         ready,
                          NULL,
                          0                    );
 
@@ -476,6 +484,7 @@ static MLibState_t DoTask0202( void *pArg )
     /* VfsRead応答(成功)送信 */
     SendVfsReadResp( pParam->globalFd,
                      LIBMVFS_RET_SUCCESS,
+                     ready,
                      pBuffer,
                      readSize             );
 
@@ -503,6 +512,7 @@ static MLibState_t DoTask0202( void *pArg )
 static MLibState_t DoTask0203( void *pArg )
 {
     uint32_t             idx;       /* インデックス */
+    uint32_t             ready;     /* レディ状態   */
     stateParamVfsWrite_t *pParam;   /* パラメータ   */
 
     DEBUG_LOG_FNC( "%s(): start.", __func__ );
@@ -510,6 +520,9 @@ static MLibState_t DoTask0203( void *pArg )
     /* 初期化 */
     idx    = 0;
     pParam = ( stateParamVfsWrite_t * ) pArg;
+
+    /* 書込レディ状態取得 */
+    ready = BufferGetReady( pParam->comNo, BUFFER_ID_TRANSMIT );
 
     /* 1byte毎に繰り返す */
     while ( idx < pParam->size ) {
@@ -528,6 +541,7 @@ static MLibState_t DoTask0203( void *pArg )
     /* VfsWrite応答(成功)送信 */
     SendVfsWriteResp( pParam->globalFd,
                       LIBMVFS_RET_SUCCESS,
+                      ready,
                       pParam->size         );
 
     DEBUG_LOG_FNC( "%s(): end.", __func__ );
@@ -589,7 +603,7 @@ static MLibState_t DoTask0205( void *pArg )
     pParam = ( stateParamRxNtc_t * ) pArg;
 
     /* VfsReady通知送信 */
-    SendVfsReadyNtc( gMngInfo[ pParam->comNo ].globalFd, MVFS_READY_READ );
+    SendVfsReadyNtc( gMngInfo[ pParam->comNo ].pPath, MVFS_READY_READ );
 
     DEBUG_LOG_FNC( "%s(): end.", __func__ );
     return STATE_OPEN;
@@ -722,7 +736,7 @@ static void DoVfsOpen( MkPid_t    pid,
         DEBUG_LOG_ERR( "invalid path: %s", pPath );
 
         /* VfsOpen応答(失敗)送信 */
-        SendVfsOpenResp( LIBMVFS_RET_FAILURE );
+        SendVfsOpenResp( globalFd, LIBMVFS_RET_FAILURE );
 
         DEBUG_LOG_FNC( "%s(): end.", __func__ );
         return;
@@ -759,7 +773,7 @@ static void DoVfsOpen( MkPid_t    pid,
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%d, err=0x%X", retMLib, err );
 
         /* VfsOpen応答(失敗)送信 */
-        SendVfsOpenResp( LIBMVFS_RET_FAILURE );
+        SendVfsOpenResp( globalFd, LIBMVFS_RET_FAILURE );
     }
 
     DEBUG_LOG_TRC( "state: %d -> %d", prevState, nextState );
@@ -783,6 +797,7 @@ static void DoVfsRead( uint32_t globalFd,
                        uint64_t readIdx,
                        size_t   size      )
 {
+    uint32_t            ready;      /* レディ状態     */
     uint32_t            err;        /* エラー         */
     MLibRet_t           retMLib;    /* MLib関数戻り値 */
     MLibState_t         prevState;  /* 遷移前状態     */
@@ -815,8 +830,11 @@ static void DoVfsRead( uint32_t globalFd,
 
         DEBUG_LOG_ERR( "ConvertGlobalFdToComNo(): globalFd=%u", globalFd );
 
+        /* レデイ状態取得 */
+        ready = BufferGetReady( comNo, BUFFER_ID_RECEIVE );
+
         /* VfsRead応答(失敗)送信 */
-        SendVfsReadResp( globalFd, LIBMVFS_RET_FAILURE, NULL, 0 );
+        SendVfsReadResp( globalFd, LIBMVFS_RET_FAILURE, ready, NULL, 0 );
 
         DEBUG_LOG_FNC( "%s(): end.", __func__ );
         return;
@@ -851,8 +869,11 @@ static void DoVfsRead( uint32_t globalFd,
 
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%d, err=0x%X", retMLib, err );
 
+        /* レデイ状態取得 */
+        ready = BufferGetReady( comNo, BUFFER_ID_RECEIVE );
+
         /* VfsRead応答(失敗)送信 */
-        SendVfsReadResp( globalFd, LIBMVFS_RET_FAILURE, NULL, 0 );
+        SendVfsReadResp( globalFd, LIBMVFS_RET_FAILURE, ready, NULL, 0 );
     }
 
     DEBUG_LOG_TRC( "state: %u -> %u", prevState, nextState );
@@ -878,11 +899,12 @@ static void DoVfsWrite( uint32_t globalFd,
                         void     *pBuffer,
                         size_t   size      )
 {
+    uint32_t             ready;     /* レディ状態     */
     uint32_t             err;       /* エラー         */
     MLibRet_t            retMLib;   /* MLib関数戻り値 */
     MLibState_t          prevState; /* 遷移前状態     */
     MLibState_t          nextState; /* 遷移後状態     */
-    NS16550ComNo_t       comNo;      /* COM番号        */
+    NS16550ComNo_t       comNo;     /* COM番号        */
     stateParamVfsWrite_t param;     /* パラメータ     */
 
     DEBUG_LOG_FNC(
@@ -917,8 +939,11 @@ static void DoVfsWrite( uint32_t globalFd,
 
         DEBUG_LOG_ERR( "ConvertGlobalFdToComNo(): globalFd=%u", globalFd );
 
+        /* 書込レディ状態取得 */
+        ready = BufferGetReady( comNo, BUFFER_ID_TRANSMIT );
+
         /* VfsWrite応答(失敗)送信 */
-        SendVfsWriteResp( globalFd, LIBMVFS_RET_FAILURE, 0 );
+        SendVfsWriteResp( globalFd, LIBMVFS_RET_FAILURE, ready, 0 );
 
         DEBUG_LOG_FNC( "%s(): end.", __func__ );
         return;
@@ -948,8 +973,11 @@ static void DoVfsWrite( uint32_t globalFd,
 
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%d, err=0x%X", retMLib, err );
 
+        /* 書込レディ状態取得 */
+        ready = BufferGetReady( comNo, BUFFER_ID_TRANSMIT );
+
         /* VfsWrite応答(失敗)送信 */
-        SendVfsWriteResp( globalFd, LIBMVFS_RET_FAILURE, 0 );
+        SendVfsWriteResp( globalFd, LIBMVFS_RET_FAILURE, ready, 0 );
     }
 
     DEBUG_LOG_TRC( "state: %u -> %u", prevState, nextState );
@@ -1226,7 +1254,7 @@ static void RecvMsgRxNtc( MkTaskId_t src,
  */
 /******************************************************************************/
 static void SendVfsCloseResp( uint32_t globalFd,
-                              int32_t  result    )
+                              uint32_t result    )
 {
     uint32_t     err;           /* LibMvfs関数エラー */
     LibMvfsRet_t retLibMvfs;    /* LibMvfs関数戻り値 */
@@ -1273,12 +1301,14 @@ static void SendVfsCloseResp( uint32_t globalFd,
  * @brief       VfsOpen応答送信
  * @details     MVFSにVfsClose応答を送信する。
  *
+ * @param[in]   globalFd グローバルFD
  * @param[in]   result   処理結果
  *                  - LIBMVFS_RET_SUCCESS 成功
  *                  - LIBMVFS_RET_FAILURE 失敗
  */
 /******************************************************************************/
-static void SendVfsOpenResp( int32_t result )
+static void SendVfsOpenResp( uint32_t globalFd,
+                             uint32_t result    )
 {
     uint32_t     err;           /* LibMvfs関数エラー */
     LibMvfsRet_t retLibMvfs;    /* LibMvfs関数戻り値 */
@@ -1292,7 +1322,7 @@ static void SendVfsOpenResp( int32_t result )
     DEBUG_LOG_TRC( "%s(): result=%u", __func__, result );
 
     /* VfsOpen応答送信 */
-    retLibMvfs = LibMvfsSendVfsOpenResp( result, &err );
+    retLibMvfs = LibMvfsSendVfsOpenResp( globalFd, result, &err );
 
     /* 送信結果判定 */
     if ( retLibMvfs != LIBMVFS_RET_SUCCESS ) {
@@ -1319,12 +1349,16 @@ static void SendVfsOpenResp( int32_t result )
  * @param[in]   result   処理結果
  *                  - LIBMVFS_RET_SUCCESS 成功
  *                  - LIBMVFS_RET_FAILURE 失敗
+ * @param[in]   ready    レディ状態
+ *                  - 0               非レディ
+ *                  - MVFS_READY_READ 読込レディ
  * @param[in]   *pBuffer バッファ
  * @param[in]   size     読込サイズ
  */
 /******************************************************************************/
 static void SendVfsReadResp( uint32_t globalFd,
-                             int32_t  result,
+                             uint32_t result,
+                             uint32_t ready,
                              void     *pBuffer,
                              size_t   size      )
 {
@@ -1345,17 +1379,18 @@ static void SendVfsReadResp( uint32_t globalFd,
     retLibMvfs = LIBMVFS_RET_FAILURE;
 
     DEBUG_LOG_TRC(
-        "%s(): globalFd=%u, result=%d, size=%u",
+        "%s(): globalFd=%u, result=%d, ready=%#X, size=%u",
         __func__,
         globalFd,
         result,
+        ready,
         size
     );
 
     /* VfsRead応答送信 */
     retLibMvfs = LibMvfsSendVfsReadResp( globalFd,
                                          result,
-                                         0,/* TODO */
+                                         ready,
                                          pBuffer,
                                          size,
                                          &err      );
@@ -1381,14 +1416,14 @@ static void SendVfsReadResp( uint32_t globalFd,
  * @brief       VfsReady通知送信
  * @details     MVFSにVfsReady通知を送信する。
  *
- * @param[in]   globalFd グローバルFD
- * @param[in]   rw       RWフラグ
+ * @param[in]   *pPath ファイルパス
+ * @param[in]   rw     RWフラグ
  *                  - MVFS_READY_READ  Readレディ
  *                  - MVFS_READY_WRITE Writeレディ
  */
 /******************************************************************************/
-static void SendVfsReadyNtc( uint32_t globalFd,
-                             uint32_t rw        )
+static void SendVfsReadyNtc( const char *pPath,
+                             uint32_t   rw      )
 {
     uint32_t     err;           /* LibMvfs関数エラー */
     LibMvfsRet_t retLibMvfs;    /* LibMvfs関数戻り値 */
@@ -1400,7 +1435,7 @@ static void SendVfsReadyNtc( uint32_t globalFd,
     retLibMvfs = LIBMVFS_RET_FAILURE;
 
     /* VfsReady通知送信 */
-    retLibMvfs = LibMvfsSendVfsReadyNtc( globalFd, rw, &err );
+    retLibMvfs = LibMvfsSendVfsReadyNtc( pPath, rw, &err );
 
     /* 送信結果判定 */
     if ( retLibMvfs != LIBMVFS_RET_SUCCESS ) {
@@ -1426,11 +1461,15 @@ static void SendVfsReadyNtc( uint32_t globalFd,
  * @param[in]   result   処理結果
  *                  - LIBMVFS_RET_SUCCESS 成功
  *                  - LIBMVFS_RET_FAILURE 失敗
- * @param[in]   size     書き込みサイズ
+ * @param[in]   ready    レディ状態
+ *                  - 0                非レディ
+ *                  - MVFS_READY_WRITE 書込レディ
+ * @param[in]   size     書込サイズ
  */
 /******************************************************************************/
 static void SendVfsWriteResp( uint32_t globalFd,
-                              int32_t  result,
+                              uint32_t result,
+                              uint32_t ready,
                               size_t   size      )
 {
     uint32_t     err;           /* LibMvfs関数エラー */
@@ -1449,17 +1488,18 @@ static void SendVfsWriteResp( uint32_t globalFd,
     retLibMvfs = LIBMVFS_RET_FAILURE;
 
     DEBUG_LOG_TRC(
-        "%s(): globalFd=%u, result=%d, size=%u",
+        "%s(): globalFd=%u, result=%d, ready=%#X, size=%u",
         __func__,
         globalFd,
         result,
+        ready,
         size
     );
 
     /* VfsWrite応答送信 */
     retLibMvfs = LibMvfsSendVfsWriteResp( globalFd,
                                           result,
-                                          0,/* TODO */
+                                          ready,
                                           size,
                                           &err      );
 

@@ -1,7 +1,7 @@
 /******************************************************************************/
 /*                                                                            */
 /* src/Buffer.c                                                               */
-/*                                                                 2019/09/01 */
+/*                                                                 2019/10/13 */
 /* Copyright (C) 2019 Mochi.                                                  */
 /*                                                                            */
 /******************************************************************************/
@@ -13,6 +13,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* ライブラリヘッダ */
+#include <libmvfs.h>
 
 /* モジュール内ヘッダ */
 #include "ns16550.h"
@@ -55,6 +58,72 @@ static Buffer_t gBuffer[ NS16550_COM_NUM ][ BUFFER_ID_NUM ];
 /******************************************************************************/
 /* グローバル関数定義                                                         */
 /******************************************************************************/
+/******************************************************************************/
+/**
+ * @brief       バッファレディ状態取得
+ * @details     バッファのレディ状態を取得する。
+ *
+ * @param[in]   comNo COM番号
+ *                  - NS16550_COM1 COM1
+ *                  - NS16550_COM2 COM2
+ *                  - NS16550_COM3 COM3
+ *                  - NS16550_COM4 COM4
+ *              id    バッファID
+ *                  - BUFFER_ID_RECEIVE  受信バッファ
+ *                  - BUFFER_ID_TRANSMIT 転送バッファ
+ *
+ * @return      バッファレディ状態を返す。
+ * @retval      0                非レディ
+ * @reval       MVFS_READY_READ  読込レディ
+ * @retval      MVFS_READY_WRITE 書込レディ
+ */
+/******************************************************************************/
+uint32_t BufferGetReady( NS16550ComNo_t comNo,
+                         BufferId_t     id     )
+{
+    uint32_t size;      /* バッファサイズ */
+    uint32_t readIdx;   /* 読込み位置     */
+    uint32_t writeIdx;  /* 書込み位置     */
+
+    /* 初期化 */
+    size     = 0;
+    readIdx  = gBuffer[ comNo ][ id ].readIdx;
+    writeIdx = gBuffer[ comNo ][ id ].writeIdx;
+
+    /* 読書き位置判定 */
+    if ( writeIdx >= readIdx ) {
+
+        size = writeIdx - readIdx;
+
+    } else {
+
+        size = writeIdx + ( BUFFER_SIZE - readIdx );
+    }
+
+    /* バッファID判定 */
+    if ( id == BUFFER_ID_RECEIVE ) {
+        /* 受信バッファ */
+
+        /* サイズ判定 */
+        if ( size != 0 ) {
+            /* 受信データ有り */
+            return MVFS_READY_READ;
+        }
+
+    } else if ( id == BUFFER_ID_TRANSMIT ) {
+        /* 転送バッファ */
+
+        /* サイズ判定 */
+        if ( size != BUFFER_SIZE ) {
+            /* 転送バッファ空き有 */
+            return MVFS_READY_WRITE;
+        }
+    }
+
+    return 0;
+}
+
+
 /******************************************************************************/
 /**
  * @brief       バッファ管理初期化
