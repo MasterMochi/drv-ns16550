@@ -33,7 +33,7 @@ CFLAGS += -fno-pic
 CFLAGS += -static
 CFLAGS += -masm=intel
 CFLAGS += -O0
-CFLAGS += -DDEBUG_LOG_LV=2
+CFLAGS += -DDEBUG_LOG_LV=3
 CFLAGS += -Iinclude
 CFLAGS += -I$(BUILD_DIR)/include
 ifdef BASE_CFLAGS

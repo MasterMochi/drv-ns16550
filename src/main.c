@@ -1428,7 +1428,7 @@ static void SendVfsReadyNtc( const char *pPath,
     uint32_t     err;           /* LibMvfs関数エラー */
     LibMvfsRet_t retLibMvfs;    /* LibMvfs関数戻り値 */
 
-    DEBUG_LOG_TRC( "%s(): start. globalFd=%u, rw=%u", __func__, globalFd, rw );
+    DEBUG_LOG_TRC( "%s(): start. globalFd=%s, rw=%u", __func__, pPath, rw );
 
     /* 初期化 */
     err        = LIBMVFS_ERR_NONE;
