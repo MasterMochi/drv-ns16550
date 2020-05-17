@@ -113,11 +113,11 @@ typedef int NS16550ComNo_t;
 #define NS16550_FCR_FIFO_DISABLE ( 0x00 )   /**< FIFO無効 */
 
 /* 受信FIFO有効フラグ */
-#define NS16550_FCR_RFIFO_ENABLE  ( 0x01 )  /**< 受信FIFO有効 */
+#define NS16550_FCR_RFIFO_ENABLE  ( 0x02 )  /**< 受信FIFO有効 */
 #define NS16550_FCR_RFIFO_DISABLE ( 0x00 )  /**< 受信FIFO無効 */
 
 /* 転送FIFO有効フラグ */
-#define NS16550_FCR_TFIFO_ENABLE  ( 0x01 )  /**< 転送FIFO有効 */
+#define NS16550_FCR_TFIFO_ENABLE  ( 0x04 )  /**< 転送FIFO有効 */
 #define NS16550_FCR_TFIFO_DISABLE ( 0x00 )  /**< 転送FIFO無効 */
 
 /* 受信トリガレベル */

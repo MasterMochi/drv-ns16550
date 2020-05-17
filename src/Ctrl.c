@@ -319,11 +319,11 @@ void CtrlInit( NS16550ComNo_t comNo )
                              NS16550_MCR_LOOP_OFF;
 
     /* 割込み無効化 */
-    CtrlEnableInterrupt( comNo,
-                         ( NS16550_IER_RBR |
-                           NS16550_IER_THR |
-                           NS16550_IER_LSR |
-                           NS16550_IER_MSR   ) );
+    CtrlDisableInterrupt( comNo,
+                          ( NS16550_IER_RBR |
+                            NS16550_IER_THR |
+                            NS16550_IER_LSR |
+                            NS16550_IER_MSR   ) );
 
     /* ディバイザラッチ設定 */
     CtrlSetDivisorLatch( comNo, NS16550_DIVISOR_LATCH_DEFAULT );
