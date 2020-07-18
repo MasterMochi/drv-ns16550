@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 内部仕様 - デバイスファイル管理モジュール</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#internal"><span itemprop="name">内部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">デバイスファイル管理モジュール</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>デバイスファイル管理モジュール</h1>
+                <p>デバイスファイル管理モジュールは下記機能を持つ。</p>
+                <ol>
+                    <li><a href="#init">初期化</a><ol>
+                        <li><a href="#init-lock">スピンロック初期化</a></li>
+                        <li><a href="#init-state">状態遷移初期化</a></li>
+                        <li><a href="#init-mount">デバイスファイル作成</a></li></ol></li>
+                    <li><a href="#sched">デバイスファイル操作要求待ち合わせ</a></li>
+
+                    <li><a href="#exec">状態遷移実行</a><ol>
+                        <li><a href="#exec-open">デバイスファイルopen要求</a></li>
+                        <li><a href="#exec-read">デバイスファイルread要求</a></li>
+                        <li><a href="#exec-write">デバイスファイルwrite要求</a></li>
+                        <li><a href="#exec-close">デバイスファイルclose要求</a></li></ol></li>
+                    <li><a href="#task11">状態遷移Task11</a><ol>
+                        <li><a href="#task11-globalfd">グローバルFD記録</a></li>
+                        <li><a href="#task11-clear">受信バッファクリア</a></li>
+                        <li><a href="#task11-reply">デバイスファイルopen応答</a></li></ol></li>
+                    <li><a href="#task12">状態遷移Task12</a><ol>
+                        <li><a href="#task12-reply">デバイスファイルopen応答</a></li></ol></li>
+                    <li><a href="#task22">状態遷移Tas22</a><ol>
+                        <li><a href="#task22-lock">スピンロック</a></li>
+                        <li><a href="#task22-pop">バッファ取出</a></li>
+                        <li><a href="#tasl22-reply">デバイスファイルread応答</a></li>
+                        <li><a href="#task22-update">通知状態更新</a></li>
+                        <li><a href="#task22-unlock">スピンアンロック</a></li></ol></li>
+                    <li><a href="#task32">状態遷移Task32</a><ol>
+                        <li><a href="#task32-lock">スピンロック</a></li>
+                        <li><a href="#task32-push">バッファ追加</a></li>
+                        <li><a href="#task32-reply">デバイスファイルwrite応答</a></li>
+                        <li><a href="#task32-txreq">転送要求</a></li>
+                        <li><a href="#task32-update">通知状態更新</a></li>
+                        <li><a href="#task32-unlock">スピンアンロック</a></li></ol></li>
+                    <li><a href="#task42">状態遷移Task42</a><ol>
+                        <li><a href="#task42-reply">デバイスファイルclose応答</a></li>
+                        <li><a href="#task42-globalfd">グローバルFD削除</a></li></ol></li>
+                    <li><a href="#readyr">読込レディ状態更新</a><ol>
+                        <li><a href="#readyr-lock">スピンロック</a></li>
+                        <li><a href="#readyr-notify">読書レディ状態通知</a></li>
+                        <li><a href="#readyr-update">通知状態更新</a></li>
+                        <li><a href="#readyr-unlock">スピンアンロック</a></li></ol></li>
+                    <li><a href="#readyw">書込レディ状態更新</a><ol>
+                        <li><a href="#readyw-lock">スピンロック</a></li>
+                        <li><a href="#readyw-notify">読書レディ状態通知</a></li>
+                        <li><a href="#readyw-update">通知状態更新</a></li>
+                        <li><a href="#readyw-unlock">スピンアンロック</a></li></ol></li>
+                </ol>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="init">初期化</a></h1>
+                <p>初期化時はデバイスファイル毎の状態を初期化し、デバイスファイルの作成を行う。初期化シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    初期化シーケンス<br>
+                    <img src="init.png">
+                </div>
+                <br>
+                <h2><a name="init-lock">スピンロック初期化</a></h2>
+                <p>メインスレッド上で実行するデバイスファイルread応答およびデバイスファイルwrite応答と、割込み管理スレッド上で実行する読書レディ状態通知を排他制御するために使用するデバイスファイル毎のスピンロックを初期化する。スピンロック初期化はMLibライブラリのMLibSpinInit()を用いる。</p>
+                <br><br>
+                <h2><a name="init-state">状態遷移初期化</a></h2>
+                <p>デバイスファイル管理モジュールでは状態遷移によって制御を行う。状態遷移はMLibライブラリの状態遷移を用いて制御する。初期化時はMLibライブラリのMLibStateInit()を用いて状態遷移の初期化を行う。設定パラメータを以下に示す。</p>
+                <br>
+                <div class="center">MLibStateInit()設定パラメータ</div>
+                <table>
+                    <tr>
+                        <td class="title" rowspan="2">#</td>
+                        <td class="title" rowspan="2">引数名</td>
+                        <td class="title" colspan="2">設定値</td>
+                        <td class="title" rowspan="2">備考</td>
+                    </tr>
+                    <tr>
+                        <td class="title">/serial1</td>
+                        <td class="title">/serial2</td>
+                    </tr>
+                    <tr>
+                        <td class="title">1</td>
+                        <td class="center">*pHandle</td>
+                        <td class="center" colspan="2">状態遷移ハンドルへのポインタ</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="title">2</td>
+                        <td class="center">*pTable</td>
+                        <td class="center" colspan="2">状態遷移表へのポインタ</td>
+                        <td>状態遷移表は下記</td>
+                    </tr>
+                    <tr>
+                        <td class="title">3</td>
+                        <td class="center">tableSize</td>
+                        <td class="center" colspan="2">状態遷移表サイズ</td>
+                        <td>sizeofを用いる</td>
+                    </tr>
+                    <tr>
+                        <td class="title">4</td>
+                        <td class="center">state</td>
+                        <td class="center" colspan="2">初期状態</td>
+                        <td>状態遷移表参照</td>
+                    </tr>
+                    <tr>
+                        <td class="title">5</td>
+                        <td class="center">*pErrNo</td>
+                        <td class="center" colspan="2">エラー要因格納先ポインタ</td>
+                        <td></td>
+                    </tr>
+                </table>
+                <br>
+                <div class="center">デバイスファイル管理状態遷移表</div>
+                <table>
+                    <tr>
+                        <td class="title">＼</td>
+                        <td class="title">状態</td>
+                        <td class="title">未open状態<br>(初期状態)</td>
+                        <td class="title">open中状態</td>
+                    </tr>
+                    <tr>
+                        <td class="title">イベント</td>
+                        <td class="title">#</td>
+                        <td class="title">S1</td>
+                        <td class="title">S2</td>
+                    </tr>
+                    <tr>
+                        <td class="title">open要求</td>
+                        <td class="title">E1</td>
+                        <td class="center">Task11<br>→S2</td>
+                        <td class="center">Task12<br>→S2</td>
+                    </tr>
+                    <tr>
+                        <td class="title">read要求</td>
+                        <td class="title">E2</td>
+                        <td class="center">-</td>
+                        <td class="center">Task22<br>→S2</td>
+                    </tr>
+                    <tr>
+                        <td class="title">write要求</td>
+                        <td class="title">E3</td>
+                        <td class="center">-</td>
+                        <td class="center">Task32<br>→S2</td>
+                    </tr>
+                    <tr>
+                        <td class="title">close要求</td>
+                        <td class="title">E4</td>
+                        <td class="center">-</td>
+                        <td class="center">Task42<br>→S1</td>
+                    </tr>
+                </table>
+                <br>
+                <h2><a name="init-mount">デバイスファイル作成</a></h2>
+                <p><a href="../../external/mount/index.html">外部仕様(デバイスファイル作成機能)</a>のデバイスファイル作成を参照のこと。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="sched">デバイスファイル操作要求待ち合わせ</a></h1>
+                <p>初期化完了後にデバイスファイル操作要求の待ち合わせを行う。また、転送制御からの転送要求待ち合わせを行う。</p>
+                <p><a href="../../external/mount/index.html">外部仕様(デバイスファイル作成機能)</a>のデバイスファイル操作要求待ち合わせを参照のこと。</p>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="exec">状態遷移実行</a></h1>
+                <p>mvfsからの各種要求と内部モジュールからのメッセージ受信時にイベントとして状態遷移を実行する。状態遷移の実行はMLibライブラリのMLibStateExec()を用いて行う。</p>
+                <br>
+                <h2><a name="exec-open">デバイスファイルopen要求</a></h2>
+                <p>デバイスファイルopen要求受信時の処理シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    デバイスファイルopen要求処理シーケンス<br>
+                    <img src="open.png">
+                </div>
+                <br>
+                <h2><a name="exec-read">デバイスファイルread要求</a></h2>
+                <p>デバイスファイルread要求受信時の処理シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    デバイスファイルread要求処理シーケンス<br>
+                    <img src="read.png">
+                </div>
+                <br>
+                <h2><a name="exec-write">デバイスファイルwrite要求</a></h2>
+                <p>デバイスファイルwrite要求受信時の処理シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    デバイスファイルwrite要求処理シーケンス<br>
+                    <img src="write.png">
+                </div>
+                <h2><a name="exec-close">デバイスファイルclose要求</a></h2>
+                <p>デバイスファイルclose要求受信時の処理シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    デバイスファイルclose要求処理シーケンス<br>
+                    <img src="close.png">
+                </div>
+            </div>
+            <div>
+                <h1><a name="task11">状態遷移Task11</a></h1>
+                <p>状態遷移Task11のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    Task11シーケンス<br>
+                    <img src="task11.png">
+                </div>
+                <br>
+                <h2><a name="task12-globalfd">グローバルFD記録</a></h2>
+                <p>デバイスファイルread要求、デバイスファイルwrite要求、デバイスファイルclose要求がどのデバイスファイルに対しての要求かを識別するために、デバイスファイルopen要求で通知されたグローバルFDをデバイス識別子と紐づけて記録しておく。</p>
+                <br><br>
+                <h2><a name="task12-clear">受信バッファクリア</a></h2>
+                <p>デバイスファイルopen以前にデバイスから受信したデータを破棄するために、バッファ管理モジュールの機能を用いて受信バッファをクリアする。</p>
+                <br><br>
+                <h2><a name="task12-reply">デバイスファイルopen応答</a></h2>
+                <p><a href="../../external/open/index.html">外部仕様(デバイスファイルopen要求処理機能)</a>のデバイスファイルopen応答を参照のこと。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="task12">状態遷移Task12</a></h1>
+                <p>状態遷移Task12のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    Task12シーケンス<br>
+                    <img src="task12.png">
+                </div>
+                <br>
+                <h2><a name="task12-reply">デバイスファイルopen応答</a></h2>
+                <p><a href="../../external/open/index.html">外部仕様(デバイスファイルopen要求処理機能)</a>のデバイスファイルopen応答を参照のこと。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="task22">状態遷移Task22</a></h1>
+                <p>状態遷移Task22のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    Task22シーケンス<br>
+                    <img src="task22.png">
+                </div>
+                <br>
+                <h2><a name="task22-lock">スピンロック</a></h2>
+                <p>割込み管理スレッド上で実施される読書レディ状態通知と排他制御を行うためにスピンロックする。スピンロックはMLibライブラリのMLibSpinLock()を用いる。</p>
+                <br><br>
+                <h2><a name="task22-pop">バッファ取出</a></h2>
+                <p>データを応答するために、バッファ管理モジュールのバッファから取り出したデータを一時的に格納しておくバッファ領域を確保し、バッファ管理モジュールの機能を用いて受信バッファからデバイスから受信したデータを取り出す。データ領域の確保は標準ライブラリのmalloc()を用いる。</p>
+                <br><br>
+                <h2><a name="task22-reply">デバイスファイルread応答</a></h2>
+                <p><a href="../../external/read/index.html">外部仕様(デバイスファイルread要求処理機能)</a>のデバイスファイルread応答を参照のこと。上述のバッファ領域確保に失敗した場合は、読込レディ状態として通知する（バッファ内データが存在しない事に起因するread失敗ではないため）。</p>
+                <br><br>
+                <h2><a name="task22-update">通知状態更新</a></h2>
+                <p>読書レディ状態通知にて不要な通知を行わない様に判定するために、デバイスファイルread応答にて設定した読込レディ状態を記憶しておく。</p>
+                <br><br>
+                <h2><a name="task22-unlock">スピンアンロック</a></h2>
+                <p>スピンロックをアンロックする。スピンアンロックはMLibライブラリのMLibSpinUnlock()を用いる。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="task32">状態遷移Task32</a></h1>
+                <p>状態遷移Task32のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    Task32シーケンス<br>
+                    <img src="task32.png">
+                </div>
+                <br>
+                <h2><a name="task32-lock">スピンロック</a></h2>
+                <p>割込み管理スレッド上で実施される読書レディ状態通知と排他制御を行うためにスピンロックする。スピンロックはMLibライブラリのMLibSpinLock()を用いる。</p>
+                <br><br>
+                <h2><a name="task32-push">バッファ追加</a></h2>
+                <p>データをデバイスに書き込むために、バッファ管理モジュールの機能を用いて転送バッファにデータを追加する。</p>
+                <br><br>
+                <h2><a name="task32-reply">デバイスファイルwrite応答</a></h2>
+                <p><a href="../../external/write/index.html">外部仕様(デバイスファイルwrite要求処理機能)</a>のデバイスファイルwrite応答を参照のこと。</p>
+                <br><br>
+                <h2><a name="task32-update">通知状態更新</a></h2>
+                <p>読書レディ状態通知にて不要な通知を行わない様に判定するために、デバイスファイルwrite応答にて設定した書込レディ状態を記憶しておく。</p>
+                <br><br>
+                <h2><a name="task32-unlock">スピンアンロック</a></h2>
+                <p>スピンロックをアンロックする。スピンアンロックはMLibライブラリのMLibSpinUnlock()を用いる。</p>
+                <br><br>
+                <h2><a name="task32-txreq">転送要求</a></h2>
+                <p>バッファにデータを追加したことを通知するために、転送制御モジュールの転送要求を呼び出す。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="task42">状態遷移Task42</a></h1>
+                <p>状態遷移Task42のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    Task42シーケンス<br>
+                    <img src="task42.png">
+                </div>
+                <br>
+                <h2><a name="task42-reply">デバイスファイルclose応答</a></h2>
+                <p><a href="../../external/close/index.html">外部仕様(デバイスファイルclose要求処理機能)</a>のデバイスファイルclose応答を参照のこと。</p>
+                <br><br>
+                <h2><a name="task42-globalfd">グローバルFD削除</a></h2>
+                <p>デバイスファイルopen要求時に記録したグローバルFDとデバイス識別子の紐づけを解除する。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="readyr">読込レディ状態更新</a></h1>
+                <p>読込レディ状態更新のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    読込レディ状態更新シーケンス<br>
+                    <img src="readyr.png">
+                </div>
+                <br>
+                <h2><a name="readyr-lock">スピンロック</a></h2>
+                <p>メインスレッド上で実行するデバイスファイルread応答とデバイスファイルwrite応答との排他制御を行うため、スピンロックする。スピンロックはMLibライブラリのMLibSpinLock()を用いる。</p>
+                <br><br>
+                <h2><a name="readyr-notify">読書レディ状態通知</a></h2>
+                <p>読込レディ状態通知が未実施の場合は通知状態に読込レディ状態を加算し読書レディ状態通知を行う。<a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の書込みレディ通知、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の読込みレディ通知を参照のこと。</p>
+                <br><br>
+                <h2><a name="readyr-update">通知状態更新</a></h2>
+                <p>読書レディ状態通知にて通知した状態を更新する。</p>
+                <br><br>
+                <h2><a name="readyr-unlock">スピンアンロック</a></h2>
+                <p>スピンロックをアンロックする。スピンアンロックはMLibライブラリのMLibSpinUnlock()を用いる。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="readyw">書込レディ状態更新</a></h1>
+                <p>書込レディ状態更新のシーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    書込レディ状態更新シーケンス<br>
+                    <img src="readyw.png">
+                </div>
+                <br>
+                <h2><a name="readyw-lock">スピンロック</a></h2>
+                <p>メインスレッド上で実行するデバイスファイルread応答とデバイスファイルwrite応答との排他制御を行うため、スピンロックする。スピンロックはMLibライブラリのMLibSpinLock()を用いる。</p>
+                <br><br>
+                <h2><a name="readyw-notify">読書レディ状態通知</a></h2>
+                <p>書込レディ状態通知が未実施の場合は通知状態に書込レディ状態を加算し読書レディ状態通知を行う。<a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の書込みレディ通知、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の読込みレディ通知を参照のこと。</p>
+                <br><br>
+                <h2><a name="readyw-update">通知状態更新</a></h2>
+                <p>読書レディ状態通知にて通知した状態を更新する。</p>
+                <br><br>
+                <h2><a name="readyw-unlock">スピンアンロック</a></h2>
+                <p>スピンロックをアンロックする。スピンアンロックはMLibライブラリのMLibSpinUnlock()を用いる。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

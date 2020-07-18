@@ -1,0 +1,33 @@
+@startuml
+
+box "drv-ns16550"
+    participant "デバイス\nファイル管理" as filemng
+    participant "バッファ管理"           as bufmng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate mlib
+filemng <- mlib: Task11( グローバルFD )
+activate filemng
+
+filemng -> filemng: グローバルFD記録
+
+filemng -> bufmng: 受信バッファクリア
+activate bufmng
+ref over bufmng
+    　バッファ管理
+    受信バッファクリア
+end ref
+filemng <-- bufmng:
+deactivate bufmng
+
+filemng -> libmvfs: デバイスファイルopen応答(成功)
+activate libmvfs
+filemng <-- libmvfs:
+deactivate libmvfs
+
+filemng --> mlib:
+deactivate filemng
+
+@enduml

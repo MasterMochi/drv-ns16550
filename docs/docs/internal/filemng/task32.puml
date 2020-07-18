@@ -1,0 +1,70 @@
+@startuml
+
+box "drv-ns16550"
+    participant "転送制御"               as txctrl
+    participant "デバイス\nファイル管理" as filemng
+    participant "バッファ管理"           as bufmng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate mlib
+filemng <- mlib: Task32( COM1/2, データ, サイズ )
+activate filemng
+
+filemng -> mlib: スピンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng -> bufmng: バッファ追加\n    ( COM1/2, 転送, データ, サイズ )
+activate bufmng
+ref over bufmng
+    バッファ管理
+    バッファ追加
+end ref
+filemng <-- bufmng:
+deactivate bufmng
+
+alt 追加サイズ == 書込サイズ
+    filemng -> libmvfs: デバイスファイルwrite応答(成功, 書込レディ)
+    activate libmvfs
+    filemng <-- libmvfs:
+    deactivate libmvfs
+
+    filemng -> filemng: 通知状態更新
+
+else 追加サイズ > 0
+    filemng -> libmvfs: デバイスファイルwrite応答(成功)
+    activate libmvfs
+    filemng <-- libmvfs:
+    deactivate libmvfs
+
+    filemng -> filemng: 通知状態更新
+
+else 追加サイズ == 0
+    filemng -> libmvfs: デバイスファイルwrite応答(失敗)
+    activate libmvfs
+    filemng<-- libmvfs:
+    deactivate libmvfs
+
+end alt
+
+filemng -> mlib: スピンアンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+txctrl <- filemng: 転送要求( COM1/2 )
+activate txctrl
+ref over txctrl
+    転送制御
+    転送要求
+end ref
+txctrl --> filemng:
+deactivate txctrl
+
+filemng --> mlib:
+deactivate filemng
+
+@enduml

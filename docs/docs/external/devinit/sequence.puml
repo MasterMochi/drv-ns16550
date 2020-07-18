@@ -1,0 +1,23 @@
+@startuml
+
+participant "NS16550\n(COM1)" as dev1
+participant "NS16550\n(COM2)" as dev2
+participant "drv-ns16550"     as drv
+
+activate drv
+
+dev1 /-- drv: IER初期化
+dev1 /-- drv: MCR初期化
+dev1 /-- drv: Divisor Latch初期化
+dev1 /-- drv: LCR初期化
+dev1 /-- drv: FCR初期化
+
+dev2 /-- drv: IER初期化
+dev2 /-- drv: MCR初期化
+dev2 /-- drv: Divisor Latch初期化
+dev2 /-- drv: LCR初期化
+dev2 /-- drv: FCR初期化
+
+
+@enduml
+

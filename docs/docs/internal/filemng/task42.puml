@@ -1,0 +1,23 @@
+@startuml
+
+box "drv-ns16550"
+    participant "デバイス\nファイル管理" as filemng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate mlib
+filemng <- mlib: Task42( COM1/2 )
+activate filemng
+
+filemng -> libmvfs: デバイスファイルclose応答(成功)
+activate libmvfs
+filemng <-- libmvfs:
+deactivate libmvfs
+
+filemng -> filemng: グローバルFD削除
+
+filemng --> mlib:
+deactivate filemng
+
+@enduml

@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 内部仕様 - 転送制御モジュール</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#internal"><span itemprop="name">内部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">転送制御モジュール</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>転送制御モジュール</h1>
+                <p>メインモジュールは下記機能を持つ。</p>
+                <ol>
+                    <li><a href="#init">初期化</a><ol>
+                        <li><a href="#init-lock">スピンロック初期化</a></li></ol></li>
+                    <li><a href="#txreq">転送要求</a><ol>
+                        <li><a href="#txreq-lock">スピンロック</a></li>
+                        <li><a href="#txreq-ier">THR割込み許可</a></li>
+                        <li><a href="#txreq-state">転送状態設定</a></li>
+                        <li><a href="#txreq-unlock">スピンアンロック</a></li></ol></li>
+                    <li><a href="#tx">転送</a><ol>
+                        <li><a href="#tx-lock">スピンロック</a></li>
+                        <li><a href="#tx-pop">バッファ取出し</a></li>
+                        <li><a href="#tx-thr">データ書込み</a></li>
+                        <li><a href="#tx-ier">THR割込み禁止</a></li>
+                        <li><a href="#tx-state">転送状態設定</a></li>
+                        <li><a href="#tx-unlock">スピンアンロック</a></li></ol></li>
+                </ol>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="init">初期化</a></h1>
+                <p>drv-ns16550起動時に転送制御モジュールが行う初期化処理は無い。初期化シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    初期化シーケンス<br>
+                    <img src="init.png">
+                </div>
+                <br>
+                <h2><a name="init-lock">スピンロック初期化</a></h2>
+                <p>メインスレッド上で実行する転送要求と割込み管理スレッド上で実行する転送処理との排他制御を行うために使用するデバイス毎のスピンロックを初期化する。スピンロック初期化はMLibライブラリのMLibSpinInit()を用いる。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="txreq">転送要求</a></h1>
+                <p>デバイスファイル管理から転送要求が起動された時にTHR割込みを有効化し転送を再開する。転送要求シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    転送要求シーケンス<br>
+                    <img src="txreq.png">
+                </div>
+                <br>
+                <h2><a name="txreq-lock">スピンロック</a></h2>
+                <p>割込み管理スレッド上で実行する転送処理との排他制御を行うため、スピンロックする。スピンロックはMLibライブラリのMLibSpinLock()を用いる。</p>
+                <br><br>
+                <h2><a name="txreq-ier">THR割込み許可</a></h2>
+                <p>不要な処理をしないようにするために転送状態が停止中の場合にのみTHR割込み許可を行う。THR割込み許可は入出力制御モジュールの機能を用いたIER書込みによって行う。<a href="../../external/write/index.html">外部仕様(デバイスファイルwrite要求処理機能)</a>のTHR割込み有効化を参照のこと。</p>
+                <br><br>
+                <h2><a name="txreq-state">転送状態設定</a></h2>
+                <p>THR割込み許可設定を行った場合は、転送状態を転送中に設定する。</p>
+                <br><br>
+                <h2><a name="txreq-unlock">スピンアンロック</a></h2>
+                <p>スピンロックをアンロックする。スピンアンロックはMLibライブラリのMLibSpinUnlock()を用いる。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="tx">転送</a></h1>
+                <p>転送要求を送信後、デバイスファイル管理モジュールから転送機能が呼び出される。転送シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    転送シーケンス<br>
+                    <img src="tx.png">
+                </div>
+                <br>
+                <h2><a name="tx-lock">スピンロック</a></h2>
+                <p>メインスレッド上で実行する転送要求との排他制御を行うため、スピンロックする。スピンロックはMLibライブラリのMLibSpinLock()を用いる。</p>
+                <br><br>
+                <h2><a name="tx-pop">バッファ取出し</a></h2>
+                <p>転送するデータをバッファ管理モジュールから最大16byte取り出す。1byte以上取り出せた場合はデバイスにデータ書込みを実施し、1byteも取り出せなかった場合はTHR割込みを禁止する。</p>
+                <br><br>
+                <h2><a name="tx-thr">データ書込み</a></h2>
+                <p>転送バッファから取り出せたデータ全てを入出力制御モジュールの機能を用いてTHRに書き込む。<a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>のデータ転送を参照のこと。</p>
+                <br><br>
+                <h2><a name="tx-ier">THR割込み禁止設定</a></h2>
+                <p>転送バッファにデータが無かった場合に入出力制御モジュールの機能を用いてTHR割込みを禁止する。<a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>のTHR割込み無効化を参照のこと。</p>
+                <br><br>
+                <h2><a name="tx-state">転送状態設定</a></h2>
+                <p>THR割込みを禁止に設定した場合に、転送状態を停止中として記録する。転送状態は転送要求時に転送再開をするか判断するために使用する。</p>
+                <br><br>
+                <h2><a name="tx-unlock">スピンアンロック</a></h2>
+                <p>スピンロックをアンロックする。スピンアンロックはMLibライブラリのMLibSpinUnlock()を用いる。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

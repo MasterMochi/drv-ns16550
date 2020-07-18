@@ -1,0 +1,28 @@
+@startuml
+
+participant "NS16550\n(COM1/2)" as dev
+participant "drv-ns16550"       as drv
+participant mvfs
+
+drv <<- mvfs: デバイスファイルwrite要求
+activate drv
+
+break 未open
+    drv ->> mvfs: デバイスファイルwrite応答(失敗)
+end break
+
+drv -> drv: 転送バッファ追加
+
+alt 1byte以上バッファ追加成功
+    drv ->> mvfs: デバイスファイルwrite応答(成功)
+else バッファ追加失敗
+    drv ->> mvfs: デバイスファイルwrite応答(失敗)
+end alt
+
+opt デバイス割込み設定 == THR割込み禁止
+    dev /-- drv: THR割込み有効化
+    deactivate drv
+end
+
+@enduml
+

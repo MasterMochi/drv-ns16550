@@ -1,0 +1,41 @@
+@startuml
+
+box "drv-ns16550"
+    participant "転送制御"               as txctrl
+    participant "デバイス\nファイル管理" as filemng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate txctrl
+ref over txctrl
+    転送制御
+      転送
+end ref
+
+txctrl -> filemng: 書込レディ状態更新( COM1/2 )
+activate filemng
+
+filemng -> mlib: スピンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+opt 通知状態 != 書込レディ通知済み
+    filemng -> libmvfs: 読書レディ状態通知
+    activate libmvfs
+    filemng <-- libmvfs:
+    deactivate libmvfs
+
+    filemng -> filemng: 通知状態更新
+end opt
+
+filemng -> mlib: スピンアンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+txctrl <-- filemng:
+deactivate filemng
+
+@enduml

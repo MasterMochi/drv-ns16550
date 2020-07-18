@@ -1,0 +1,78 @@
+@startuml
+
+box "drv-ns16550"
+    participant "割込み管理"             as intmng
+    participant "入出力制御"             as ioctrl
+    participant "受信制御"               as rxctrl
+    participant "バッファ管理"           as bufmng
+    participant "デバイス\nファイル管理" as filemng
+end box
+
+activate intmng
+ref over intmng
+    割込み管理
+    割込み処理
+end ref
+
+intmng -> rxctrl: 受信( COM1/2 )
+activate rxctrl
+
+ioctrl <- rxctrl: LSR読込み( COM1/2 )
+activate ioctrl
+note right: ステータス読込み( COM1/2 )
+ref over ioctrl
+      入出力制御
+    デバイス読込み
+end ref
+ioctrl --> rxctrl:
+deactivate ioctrl
+
+loop ( ステータス & 0xF ) != 0
+    ioctrl <- rxctrl: RBR読込み( COM1/2 )
+    activate ioctrl
+    note right: 受信バッファ読込み
+    ref over ioctrl
+          入出力制御
+        デバイス読込み
+    end ref
+    ioctrl --> rxctrl:
+    deactivate ioctrl
+
+    opt ( ステータス & 0xE ) == 0
+        rxctrl -> bufmng: バッファ追加\n    ( COM1/2, 受信, データ )
+        activate bufmng
+        ref over bufmng
+            バッファ管理
+            バッファ追加
+        end ref
+        rxctrl <-- bufmng:
+        deactivate bufmng
+    end opt
+
+    ioctrl <- rxctrl: LSR読込み( COM1/2 )
+    activate ioctrl
+    note right: ステータス読込み
+    ref over ioctrl
+          入出力制御
+        デバイス読込み
+    end ref
+    ioctrl --> rxctrl:
+    deactivate ioctrl
+end loop
+
+
+opt バッファ追加 == 有
+    rxctrl -> filemng: 読込レディ状態更新( COM1/2 )
+    activate filemng
+    ref over filemng
+        デバイスファイル管理
+         読込レディ状態更新
+    end ref
+    rxctrl <-- filemng:
+    deactivate filemng
+end opt
+
+intmng <-- rxctrl:
+deactivate rxctrl
+
+@enduml

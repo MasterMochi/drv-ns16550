@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 外部仕様 - デバイスファイルclose要求処理機能</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#external"><span itemprop="name">外部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">デバイスファイルclose要求処理機能</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>デバイスファイルclose要求処理機能</h1>
+                <p>mvfsからのデバイスファイルclose要求に対し、応答を返す。シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    シーケンス図<br>
+                    <img src="sequence.png">
+                </div>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>デバイスファイルclose要求受付</h1>
+                <p>デバイスファイルclose要求では以下に示すパラメータを受け取る。</p>
+                <br>
+                <div class="center">デバイスファイルclose要求パラメータ</div>
+                <table>
+                    <tr>
+                        <td class="title">#</td>
+                        <td class="title">パラメータ名</td>
+                        <td class="title">意味</td>
+                    </tr>
+                    <tr>
+                        <td class="title">1</td>
+                        <td class="center">グローバルFD</td>
+                        <td>デバイスファイルopen要求時に受け付けた要求識別番号</td>
+                    </tr>
+                </table>
+                <br>
+                <p>デバイスファイルが未openの場合は処理結果を失敗として応答する（デバイスファイルclose応答参照）。</p>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>デバイスファイルclose応答</h1>
+                <p>デバイスファイルclose応答は、mvfsライブラリのLibMvfsSendVfsCloseResp()を用いて行う。設定パラメータを以下に示す。</p>
+                <br>
+                <div class="center">LibMvfsSendVfsCloseResp()設定パラメータ</div>
+                <table>
+                    <tr>
+                        <td class="title" rowspan="2">#</td>
+                        <td class="title" rowspan="2">引数名</td>
+                        <td class="title" colspan="2">設定値</td>
+                    </tr>
+                    <tr>
+                        <td class="title">成功時</td>
+                        <td class="title">失敗時</td>
+                    </tr>
+                    <tr>
+                        <td class="title">1</td>
+                        <td class="center">globalFd</td>
+                        <td class="center" colspan="2">要求時のグローバルFD</td>
+                    </tr>
+                    <tr>
+                        <td class="title">2</td>
+                        <td class="center">result</td>
+                        <td class="center">LIBMVFS_RET_SUCCESS</td>
+                        <td class="center">LIBMVFS_RET_FAILURE</td>
+                    </tr>
+                    <tr>
+                        <td class="title">3</td>
+                        <td class="center">*pErrNo</td>
+                        <td class="center" colspan="2">エラー要因格納先ポインタ</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,51 @@
+@startuml
+
+box "drv-ns16550"
+    participant "メイン"               as main
+    participant "デバイスファイル管理" as filemng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate main
+ref over main
+    メイン 初期化
+end ref
+
+main -> filemng: 初期化
+activate filemng
+
+filemng -> mlib: serial1用スピンロック初期化
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng -> mlib: serial2用スピンロック初期化
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng -> mlib: 状態遷移初期化(/serial1)
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng -> mlib: 状態遷移初期化(/serial2)
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng -> libmvfs: デバイスファイル作成( /serial1 )
+activate libmvfs
+filemng <-- libmvfs:
+deactivate libmvfs
+
+filemng -> libmvfs: デバイスファイル作成( /serial2 )
+activate libmvfs
+filemng <-- libmvfs:
+deactivate libmvfs
+
+main <-- filemng:
+deactivate filemng
+
+@enduml

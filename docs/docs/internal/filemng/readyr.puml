@@ -1,0 +1,41 @@
+@startuml
+
+box "drv-ns16550"
+    participant "受信制御"               as rxctrl
+    participant "デバイス\nファイル管理" as filemng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate rxctrl
+ref over rxctrl
+    受信制御
+      受信
+end ref
+
+rxctrl -> filemng: 読込レディ状態更新( COM1/2 )
+activate filemng
+
+filemng -> mlib: スピンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+opt 通知状態 != 読込レディ通知済み
+    filemng -> libmvfs: 読書レディ状態通知
+    activate libmvfs
+    filemng <-- libmvfs:
+    deactivate libmvfs
+
+    filemng -> filemng: 通知状態更新
+end opt
+
+filemng -> mlib: スピンアンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+rxctrl <-- filemng:
+deactivate filemng
+
+@enduml

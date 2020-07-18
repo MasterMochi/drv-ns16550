@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 外部仕様 - デバイス初期化機能</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#external"><span itemprop="name">外部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">デバイス初期化機能</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>デバイス初期化機能</h1>
+                <p>起動時にNS16550またはその互換シリアルポートデバイスを下記シーケンスの通りに初期化する。</p>
+                <br>
+                <div class="center">
+                    シーケンス図<br>
+                    <img src="sequence.png">
+                </div>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>IER(Interrupt Enable Register)初期化</h1>
+                <p>起動時は全割込みを禁止にするため、IERを下記の通りに設定する。</p>
+                <br>
+                <div class="center">Interrupt Enable Register 初期化</div>
+                <table>
+                    <tr>
+                        <td class="title" colspan="2">I/O port</td>
+                        <td class="title" rowspan="2">bit</td>
+                        <td class="title" rowspan="2">値</td>
+                        <td class="title" rowspan="2">意味</td>
+                        <td class="title" rowspan="2">備考</td>
+                    </tr>
+                    <tr>
+                        <td class="title">COM1</td>
+                        <td class="title">COM2</td>
+                    </tr>
+                    <tr>
+                        <td class="center" rowspan="5">0x03F9</td>
+                        <td class="center" rowspan="5">0x02F9</td>
+                        <td class="center">7-4</td>
+                        <td class="center">0</td>
+                        <td>予約</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">3</td>
+                        <td class="center">0</td>
+                        <td>MSR割込み禁止</td>
+                        <td>MSR: Modem Status Register</td>
+                    </tr>
+                    <tr>
+                        <td class="center">2</td>
+                        <td class="center">0</td>
+                        <td>LSR割込み禁止</td>
+                        <td>LSR: Line Status Register</td>
+                    </tr>
+                    <tr>
+                        <td class="center">1</td>
+                        <td class="center">0</td>
+                        <td>THR割込み禁止</td>
+                        <td>THR: Transmit Holding Register</td>
+                    </tr>
+                    <tr>
+                        <td class="center">0</td>
+                        <td class="center">0</td>
+                        <td>RBR割込み禁止</td>
+                        <td>RBR: Receiver Buffer Register</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>MCR(Modem Control Register)初期化</h1>
+                <p>OUT、RTS、DTSなどのpin出力設定を初期化するために、MCRを下記の通りに設定する。</p>
+                <br>
+                <div class="center">Modem Control Register 初期化</div>
+                <table>
+                    <tr>
+                        <td class="title" colspan="2">I/O port</td>
+                        <td class="title" rowspan="2">bit</td>
+                        <td class="title" rowspan="2">値</td>
+                        <td class="title" rowspan="2">意味</td>
+                        <td class="title" rowspan="2">備考</td>
+                    </tr>
+                    <tr>
+                        <td class="title">COM1</td>
+                        <td class="title">COM2</td>
+                    </tr>
+                    <tr>
+                        <td class="center" rowspan="6">0x03FC</td>
+                        <td class="center" rowspan="6">0x02FC</td>
+                        <td class="center">7-5</td>
+                        <td class="center">0</td>
+                        <td>予約</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">4</td>
+                        <td class="center">0</td>
+                        <td>通常（非ループバック）モード</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">3</td>
+                        <td class="center">1</td>
+                        <td><span style="text-decoration: overline">OUT2</span>=H(割り込み禁止)</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">2</td>
+                        <td class="center">1</td>
+                        <td><span style="text-decoration: overline">OUT1</span>=L</td>
+                        <td>未使用pin</td>
+                    </tr>
+                    <tr>
+                        <td class="center">1</td>
+                        <td class="center">0</td>
+                        <td><span style="text-decoration: overline">RTS</span>=L</td>
+                        <td>RTS: Request To Send</td>
+                    </tr>
+                    <tr>
+                        <td class="center">0</td>
+                        <td class="center">0</td>
+                        <td><span style="text-decoration: overline">DTR</span>=L</td>
+                        <td>DTR: Data Terminal Ready</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>Divisor Latch 初期化</h1>
+                <p>転送レートを9,600bpsに初期化するため、Divisor Latch を下記手順で設定する。</p>
+                <br>
+                <div class="center">Divisor Latch 初期化</div>
+                <table>
+                    <tr>
+                        <td class="title" rowspan="2">手順</td>
+                        <td class="title" colspan="2">I/O port</td>
+                        <td class="title" rowspan="2">bit</td>
+                        <td class="title" rowspan="2">値</td>
+                        <td class="title" rowspan="2">意味</td>
+                        <td class="title" rowspan="2">備考</td>
+                    </tr>
+                    <tr>
+                        <td class="title">COM1</td>
+                        <td class="title">COM2</td>
+                    </tr>
+                    <tr>
+                        <td class="title" rowspan="2">1</td>
+                        <td class="center" rowspan="2">0x03FB</td>
+                        <td class="center" rowspan="2">0x02FB</td>
+                        <td class="center">7</td>
+                        <td class="center">1</td>
+                        <td>Divisor Latch アクセスON</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">6-0</td>
+                        <td class="center">-</td>
+                        <td>変更しない</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="title">2</td>
+                        <td class="center">0x03F8</td>
+                        <td class="center">0x02F8</td>
+                        <td class="center">7-0</td>
+                        <td class="center">0x00</td>
+                        <td>Divisor Latch 上位</td>
+                        <td rowspan="2">転送レート=9,600[bps]</td>
+                    </tr>
+                    <tr>
+                        <td class="title">3</td>
+                        <td class="center">0x03F9</td>
+                        <td class="center">0x02F8</td>
+                        <td class="center">7-0</td>
+                        <td class="center">0x0C</td>
+                        <td>Divisor Latch 下位</td>
+                    </tr>
+                    <tr>
+                        <td class="title" rowspan="2">4</td>
+                        <td class="center" rowspan="2">0x03FB</td>
+                        <td class="center" rowspan="2">0x02FB</td>
+                        <td class="center">7</td>
+                        <td class="center">0</td>
+                        <td>Divisor Latch アクセスOFF</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">6-0</td>
+                        <td class="center">-</td>
+                        <td>変更しない</td>
+                        <td></td>
+                    </tr>
+                </table>
+                <br>
+                <p>Divisor Latch、IER、および、THRはI/Oポートアドレスを共有しており、LCR(Line Control Register)のbit7のDLAB(Divisor Latch Access Bit)によってアクセス切り替えを行ってアクセスするため、手順1にてDivisor Latchアクセスに切り替えて、手順4にて切り戻す。</p>
+                <p>Divisor Latchと転送レートの関係は下記の通りである。</p>
+                <br>
+                <table>
+                    <tr><td class="title">Divisor Latchと転送レートの関係式</td></tr>
+                    <tr><td>
+                        <code>
+                            <pre>Divisor Latch設定値</pre>
+                            <pre>    = ( 基準クロック[Hz]          ) / ( サンプリング速度 ) / 転送レート[bps]</pre>
+                            <pre>    = ( 24,000,000[Hz] / 13[分周] ) / ( 16               ) / 転送レート[bps]</pre>
+                            <pre>    = (  1,846,153[Hz]            ) / ( 16               ) / 転送レート[bps]</pre>
+                            <pre>    = 115,384 / 転送レート[bps]</pre>
+                        </code>
+                    </td></tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>LCR(Line Control Register)初期化</h1>
+                <p>シリアル通信設定のために、LCRを下記の通りに設定する。</p>
+                <br>
+                <div class="center">Line Control Register 初期化</div>
+                <table>
+                    <tr>
+                        <td class="title" colspan="2">I/O port</td>
+                        <td class="title" rowspan="2">bit</td>
+                        <td class="title" rowspan="2">値</td>
+                        <td class="title" rowspan="2">意味</td>
+                        <td class="title" rowspan="2">備考</td>
+                    </tr>
+                    <tr>
+                        <td class="title">COM1</td>
+                        <td class="title">COM2</td>
+                    </tr>
+                    <tr>
+                        <td class="center" rowspan="7">0x03FB</td>
+                        <td class="center" rowspan="7">0x02FB</td>
+                        <td class="center">7</td>
+                        <td class="center">0</td>
+                        <td>非Divisor Latchアクセス</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">6</td>
+                        <td class="center">0</td>
+                        <td>Break信号送出無し</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">5</td>
+                        <td class="center">0</td>
+                        <td>固定パリティしない</td>
+                        <td>bit3-4設定有効</td>
+                    </tr>
+                    <tr>
+                        <td class="center">4</td>
+                        <td class="center">0</td>
+                        <td>奇数パリティ</td>
+                        <td>但し、bit3により無効</td>
+                    </tr>
+                    <tr>
+                        <td class="center">3</td>
+                        <td class="center">0</td>
+                        <td>パリティbit無し</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">2</td>
+                        <td class="center">0</td>
+                        <td>ストップbit長1</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">1-0</td>
+                        <td class="center">3</td>
+                        <td>データbit長8</td>
+                        <td></td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1>FCR(FIFO Control Register)初期化</h1>
+                <p>受信割込みタイミングとFIFO有効化設定のために、FCRを下記の通りに設定する。</p>
+                <br>
+                <div class="center">FIFO Control Register 初期化</div>
+                <table>
+                    <tr>
+                        <td class="title" colspan="2">I/O port</td>
+                        <td class="title" rowspan="2">bit</td>
+                        <td class="title" rowspan="2">値</td>
+                        <td class="title" rowspan="2">意味</td>
+                        <td class="title" rowspan="2">備考</td>
+                    </tr>
+                    <tr>
+                        <td class="title">COM1</td>
+                        <td class="title">COM2</td>
+                    </tr>
+                    <tr>
+                        <td class="center" rowspan="5">0x03FA</td>
+                        <td class="center" rowspan="5">0x02FA</td>
+                        <td class="center">7-6</td>
+                        <td class="center">3</td>
+                        <td>受信FIFOトリガレベル=14[byte]</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">5-3</td>
+                        <td class="center">0</td>
+                        <td>予約</td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td class="center">2</td>
+                        <td class="center">1</td>
+                        <td>送信FIFOリセット</td>
+                        <td>リセット後自動クリア</td>
+                    </tr>
+                    <tr>
+                        <td class="center">1</td>
+                        <td class="center">1</td>
+                        <td>受信FIFOリセット</td>
+                        <td>リセット後自動クリア</td>
+                    </tr>
+                    <tr>
+                        <td class="center">0</td>
+                        <td class="center">1</td>
+                        <td>FIFO有効</td>
+                        <td></td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

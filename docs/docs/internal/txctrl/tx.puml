@@ -1,0 +1,77 @@
+@startuml
+
+box "drv-ns16550"
+    participant "入出力制御"             as ioctrl
+    participant "割込み管理"             as intmng
+    participant "転送制御"               as txctrl
+    participant "バッファ管理"           as bufmng
+    participant "デバイス\nファイル管理" as filemng
+end box
+participant "MLib" as mlib
+
+activate intmng
+ref over intmng
+    割込み管理
+    割込み処理
+end ref
+
+intmng -> txctrl: 転送( COM1/2 )
+activate txctrl
+
+txctrl -> mlib: スピンロック( COM1/2 )
+activate mlib
+txctrl <-- mlib:
+deactivate mlib
+
+txctrl -> bufmng: バッファ取出\n    ( COM1/2, 転送 )
+activate bufmng
+ref over bufmng
+    バッファ管理
+    バッファ取出
+end ref
+txctrl <-- bufmng:
+deactivate bufmng
+
+alt データ有り
+    ioctrl <- txctrl: THR書込み\n    ( COM1/2, データ, サイズ )
+    activate ioctrl
+    note right: データ書込み
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> txctrl:
+    deactivate ioctrl
+
+else データ無し
+    ioctrl <- txctrl: IER書込み( COM1/2, [1]=0 )
+    activate ioctrl
+    note right: THR割込み禁止
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> txctrl:
+    deactivate ioctrl
+
+    txctrl -> txctrl: 転送状態設定( 転送停止 )
+end alt
+
+txctrl -> mlib: スピンアンロック( COM1/2 )
+activate mlib
+txctrl <-- mlib:
+deactivate mlib
+
+txctrl -> filemng: 書込レディ状態更新( COM1/COM2 )
+activate filemng
+ref over filemng
+    デバイスファイル管理
+     書込レディ状態更新
+end ref
+txctrl <-- filemng:
+deactivate filemng
+
+intmng <-- txctrl:
+deactivate txctrl
+
+@enduml

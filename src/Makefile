@@ -1,8 +1,8 @@
 #******************************************************************************#
 #*                                                                            *#
 #* src/Makefile                                                               *#
-#*                                                                 2019/09/02 *#
-#* Copyright (C) 2019 Mochi.                                                  *#
+#*                                                                 2020/07/14 *#
+#* Copyright (C) 2019-2020 Mochi.                                             *#
 #*                                                                            *#
 #******************************************************************************#
 #******************************************************************************#
@@ -13,10 +13,12 @@ PROG = drv-ns16550
 
 # ソースコード
 SRCS  = main.c
-SRCS += Buffer.c
-SRCS += Ctrl.c
-SRCS += Receive.c
-SRCS += Transmit.c
+SRCS += Ioctrl.c
+SRCS += Bufmng.c
+SRCS += Intmng.c
+SRCS += Filemng.c
+SRCS += Rxctrl.c
+SRCS += Txctrl.c
 
 # ビルドディレクトリ
 BUILD_DIR   = ../build

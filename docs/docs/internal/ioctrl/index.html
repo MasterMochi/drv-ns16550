@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 内部仕様 - 入出力制御モジュール</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#internal"><span itemprop="name">内部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">入出力制御モジュール</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>入出力制御モジュール</h1>
+                <p>入出力制御モジュールは下記機能を持つ。</p>
+                <ol>
+                    <li><a href="#init">初期化</a></li>
+                    <li><a href="#in">レジスタ読込み</a></li>
+                    <li><a href="#out">レジスタ書込み</a></li>
+                </ol>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="init">初期化</a></h1>
+                <p>デバイス初期化を行う。<a href="../../external/devinit/index.html">外部仕様(デバイス初期化機能)</a>を参照のこと。</p>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="in">デバイス読込み</a></h1>
+                <p>デバイス識別番号とレジスタをキーに下表のI/Oポートからレジスタを読込む機能を各モジュールに提供する。レジスタの読込みはMochiKernelライブラリのLibMkIoPortInByte()を用いる。</p>
+                <br>
+                <div class="center">デバイス識別番号と読込み先I/Oポート番号</div>
+                <table>
+                    <tr>
+                        <td class="title" rowspan="2">レジスタ</td>
+                        <td class="title" colspan="2">デバイス識別番号別I/Oポート番号</td>
+                    </tr>
+                    <tr>
+                        <td class="title">0(COM1)</td>
+                        <td class="title">1(COM2)</td>
+                    </tr>
+                    <tr>
+                        <td class="center">RBR</td>
+                        <td class="center">0x03F8</td>
+                        <td class="center">0x02F8</td>
+                    </tr>
+                    <tr>
+                        <td class="center">IIR</td>
+                        <td class="center">0x03FA</td>
+                        <td class="center">0x02FA</td>
+                    </tr>
+                    <tr>
+                        <td class="center">LSR</td>
+                        <td class="center">0x03FD</td>
+                        <td class="center">0x02FD</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="out">デバイス書込み</a></h1>
+                <p>デバイス識別番号とレジスタをキーに下表のI/Oポートにレジスタを書込む機能を各モジュールに提供する。IERとMCRへの書込みは指定されたbitだけを変更する機能を具備するため、一度該当レジスタを読込んだ後に設定値を反映させて書き込む。THRへの書込みは複数byteを連続して書き込む機能を具備する。レジスタの書込みはMochiKernelライブラリのLibMkIoPortInByte()を用いる。</p>
+                <br>
+                <div class="center">デバイス識別番号と書込み先I/Oポート番号</div>
+                <table>
+                    <tr>
+                        <td class="title" rowspan="2">レジスタ</td>
+                        <td class="title" colspan="2">デバイス識別番号別I/Oポート番号</td>
+                    </tr>
+                    <tr>
+                        <td class="title">0(COM1)</td>
+                        <td class="title">1(COM2)</td>
+                    </tr>
+                    <tr>
+                        <td class="center">THR</td>
+                        <td class="center">0x03F8</td>
+                        <td class="center">0x02F8</td>
+                    </tr>
+                    <tr>
+                        <td class="center">IER</td>
+                        <td class="center">0x03F9</td>
+                        <td class="center">0x02F9</td>
+                    </tr>
+                    <tr>
+                        <td class="center">MCR</td>
+                        <td class="center">0x03FC</td>
+                        <td class="center">0x02FC</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

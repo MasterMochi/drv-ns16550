@@ -1,4 +1,6 @@
 build/obj
 build/release/drv-ns16550
+doxygen/output
+doxygen/log
 tags
 !.gitkeep

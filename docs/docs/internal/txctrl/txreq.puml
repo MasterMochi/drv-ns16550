@@ -1,0 +1,46 @@
+@startuml
+
+box "drv-ns16550"
+    participant "入出力制御"             as ioctrl
+    participant "転送制御"               as txctrl
+    participant "デバイス\nファイル管理" as filemng
+end box
+participant "MLib" as mlib
+
+activate filemng
+ref over filemng
+    デバイスファイル管理
+       状態遷移Task32
+end ref
+
+txctrl <- filemng: 転送要求( COM1/2 )
+activate txctrl
+
+txctrl -> mlib: スピンロック( COM1/2 )
+activate mlib
+txctrl <-- mlib:
+deactivate mlib
+
+opt 転送状態 == 転送停止中
+    ioctrl <- txctrl: IER書込み\n    ( COM1/2, [1]=1 )
+    activate ioctrl
+    note right: THR割込み許可
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> txctrl:
+    deactivate ioctrl
+
+    txctrl -> txctrl: 転送状態設定( 転送中 )
+end opt
+
+txctrl -> mlib: スピンアンロック( COM1/2 )
+activate mlib
+txctrl <-- mlib:
+deactivate mlib
+
+txctrl --> filemng:
+deactivate txctrl
+
+@enduml

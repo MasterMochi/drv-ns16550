@@ -1,0 +1,47 @@
+@startuml
+
+box "drv-ns16550"
+    participant "デバイス\nファイル管理" as filemng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate libmvfs
+ref over filemng, libmvfs
+    デバイスファイル操作要求待ち合わせ
+end ref
+
+filemng <- libmvfs: デバイスファイルopen要求
+activate filemng
+
+alt ファイルパス == "/serial1"
+    filemng -> mlib: 状態遷移実行( serial1, open要求 )
+    activate mlib
+    ref over filemng, mlib
+        Task11 / Task12
+    end ref
+    filemng <-- mlib:
+    deactivate mlib
+
+else ファイルパス == "/serial2"
+    filemng -> mlib: 状態遷移実行( serial2, open要求 )
+    activate mlib
+    ref over filemng, mlib
+        Task11 / Task12
+    end ref
+    filemng <-- mlib:
+    deactivate mlib
+
+else
+    filemng -> libmvfs: デバイスファイルopen応答(失敗)
+    activate libmvfs
+    filemng <-- libmvfs:
+    deactivate libmvfs
+
+end alt
+
+filemng --> libmvfs:
+deactivate filemng
+
+
+@enduml

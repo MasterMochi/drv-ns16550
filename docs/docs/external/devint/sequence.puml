@@ -1,0 +1,61 @@
+@startuml
+
+participant "NS16550\n(COM1)" as dev1
+participant "NS16550\n(COM2)" as dev2
+participant "MochiKernel"     as kernel
+participant "drv-ns16550"     as drv
+
+activate drv
+ref over drv
+    デバイス初期化機能
+end ref
+
+kernel <- drv: 割込み監視開始(COM1)
+activate kernel
+kernel --> drv:
+deactivate kernel
+kernel <- drv: 割込み監視開始(COM2)
+activate kernel
+kernel --> drv:
+deactivate kernel
+
+kernel <- drv: 割込み有効化(COM1)
+activate kernel
+kernel --> drv:
+deactivate kernel
+kernel <- drv: 割込み有効化(COM2)
+activate kernel
+kernel --> drv:
+deactivate kernel
+
+dev1 /-- drv: 割込み有効化
+dev2 /-- drv: 割込み有効化
+
+loop
+    par
+        kernel <- drv: 割込み待ち
+        deactivate drv
+        activate kernel
+
+        ...
+    else
+        alt
+            dev1 -> kernel: 割込み
+        else
+            dev2 -> kernel: 割込み
+        end alt
+    end par
+
+    kernel --> drv:
+    deactivate kernel
+    activate drv
+
+    ref over drv
+        デバイス転送機能
+    end ref
+    ref over drv
+        デバイス受信機能
+    end ref
+end loop
+
+@enduml

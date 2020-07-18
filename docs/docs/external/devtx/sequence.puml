@@ -1,0 +1,40 @@
+@startuml
+
+participant "NS16550\n(COM1/2)" as dev
+participant "MochiKernel"       as kernel
+participant "drv-ns16550"       as drv
+participant mvfs
+
+dev -> kernel: 割込み
+activate kernel
+kernel -> drv:
+deactivate kernel
+activate drv
+
+dev --\ drv: 割込み要因(IIR)読込み
+
+alt 要因==転送バッファ空
+
+    kernel <- drv: 割込み完了通知
+    activate kernel
+    kernel --> drv:
+    deactivate kernel
+
+    drv -> drv: 転送バッファ取り出し
+
+    alt 取り出したデータ有り
+        loop 取り出したデータバイト数分
+            dev /-- drv: 転送バッファ(THR)書込み
+        end loop
+    else 取り出したデータ無し
+        dev /-- drv: THR割込み無効化設定
+    end alt
+
+    opt 前回通知==非レディ
+        drv ->> mvfs: 書込みレディ通知
+    end opt
+end alt
+
+deactivate drv
+
+@enduml

@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 内部仕様 - 割込み管理モジュール</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#internal"><span itemprop="name">内部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">割込み管理モジュール</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>割込み管理モジュール</h1>
+                <p>割込み管理モジュールは下記機能を持つ。</p>
+                <ol>
+                    <li><a href="#init">初期化</a><ol>
+                        <li><a href="#init-thread">受信スレッド作成</a></li>
+                        <li><a href="#init-monitor">割込み監視開始</a></li>
+                        <li><a href="#init-enable">割込み有効化</a></li>
+                        <li><a href="#init-wait">割込み待ち合わせ</a></li></ol></li>
+                    <li><a href="#proc">割込み処理</a><ol>
+                        <li><a href="#proc-iir">割込み要因判定</a></li>
+                        <li><a href="#proc-eoi">割込み完了通知</a></li>
+                        <li><a href="#proc-tx">転送</a></li>
+                        <li><a href="#proc-rx">受信</a></li></ol></li>
+                </ol>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="init">初期化</a></h1>
+                <p>割込み管理モジュールは初期化時に受信スレッドを生成し、受信スレッド上で割込み設定と待ち合わせを行う。初期化シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    初期化シーケンス<br>
+                    <img src="init.png">
+                </div>
+                <br>
+                <h2><a name="init-thread">受信スレッド作成</a></h2>
+                <p>割込み待ち合わせとデバイスから受信データを取得するためのスレッドを作成する。</p>
+                <p>始めに、作成するスレッド用のスタック領域をC標準ライブラリのmalloc()を用いて割り当てる。次に、MochiKernelライブラリのLibMkThreadCreate()を用いてスレッドを作成する。設定パラメータを以下に示す。</p>
+                <br>
+                <div class="center">malloc()設定パラメータ</div>
+                <table>
+                    <tr>
+                        <td class="title">#</td>
+                        <td class="title">引数名</td>
+                        <td class="title">設定値</td>
+                    </tr>
+                    <tr>
+                        <td class="title">1</td>
+                        <td class="center">size</td>
+                        <td class="center">4,096</td>
+                    </tr>
+                </table>
+                <br>
+                <div class="center">LibMkThreadCreate()設定パラメータ</div>
+                <table>
+                    <tr>
+                        <td class="title">#</td>
+                        <td class="title">引数名</td>
+                        <td class="title">設定値</td>
+                    </tr>
+                    <tr>
+                        <td class="title">1</td>
+                        <td class="center">pFunc</td>
+                        <td class="center">エントリ関数ポインタ</td>
+                    </tr>
+                    <tr>
+                        <td class="title">2</td>
+                        <td class="center">*pArg</td>
+                        <td class="center">NULL</td>
+                    </tr>
+                    <tr>
+                        <td class="title">3</td>
+                        <td class="center">*pStackAddr</td>
+                        <td class="center">malloc()の戻り値</td>
+                    </tr>
+                    <tr>
+                        <td class="title">4</td>
+                        <td class="center">stackSize</td>
+                        <td class="center">4096</td>
+                    </tr>
+                    <tr>
+                        <td class="title">5</td>
+                        <td class="center">*pTaskId</td>
+                        <td class="center">タスクID格納先ポインタ</td>
+                    </tr>
+                    <tr>
+                        <td class="title">6</td>
+                        <td class="center">*pErr</td>
+                        <td class="center">エラー要因格納先ポインタ</td>
+                    </tr>
+                </table>
+                <br>
+                <h2><a name="init-monitor">割込み監視開始</a></h2>
+                <p><a href="../../external/devint/index.html">外部仕様(デバイス割込み待ち合わせ機能)</a>の割込み監視開始を参照のこと。</p>
+                <br><br>
+                <h2><a name="init-enable">割込み有効化</a></h2>
+                <p><a href="../../external/devint/index.html">外部仕様(デバイス割込み待ち合わせ機能)</a>の割込み有効化(カーネル)、割込み有効化(デバイス)を参照のこと。デバイスへの設定は入出力制御モジュールの機能を用いて行う。</p>
+                <br><br>
+                <h2><a name="init-wait">割込み待ち合わせ</a></h2>
+                <p><a href="../../external/devint/index.html">外部仕様(デバイス割込み待ち合わせ機能)</a>の割込み待ち合わせを参照のこと。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+            <div>
+                <h1><a name="proc">割込み処理</a></h1>
+                <p>割込みが発生して割込み待ち合わせから制御が戻った時に、発生した割込み番号毎に対応するデバイスの割込み要因を読込み、割込み要因毎に転送処理または受信処理を呼び出す。転送処理の場合は先に割込み完了通知を行い、受信処理の場合は後に行う。割込み処理シーケンスを以下に示す。</p>
+                <br>
+                <div class="center">
+                    割込み処理シーケンス<br>
+                    <img src="proc.png">
+                </div>
+                <br>
+                <h2><a name="proc-iir">割込み要因判定</a></h2>
+                <p><a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の割込み要因判定、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の割込み要因判定を参照のこと。デバイスからの読込みは入出力制御モジュールの機能を用いて行う。</p>
+                <br><br>
+                <h2><a name="proc-eoi">割込み完了通知</a></h2>
+                <p><a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の割込み完了通知、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の割込み完了通知を参照。</p>
+                <br><br>
+                <h2><a name="proc-tx">転送</a></h2>
+                <p>割込み要因が転送バッファ空の場合は転送制御モジュールの転送機能を呼び出してデータ転送を行う。</p>
+                <br><br>
+                <h2><a name="proc-rx">受信</a></h2>
+                <p>割込み要因がデータ受信、エラー、または、受信タイムアウトの場合は受信制御モジュールの受信機能を呼び出してデータ転送を行う。</p>
+                <br>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,98 @@
+@startuml
+
+participant "MochiKernel\n(ライブラリ)" as libmk
+box "drv-ns16550"
+    participant "メイン"                       as main
+    participant "入出力\n制御"                 as ioctrl
+    participant "割込み管理\n(メインスレッド)" as intmng
+    participant "割込み管理\n(受信スレッド)"   as intmngt
+end box
+
+activate main
+ref over main
+    メイン 初期化
+end ref
+
+main -> intmng: 初期化
+activate intmng
+
+intmng -> intmng: スタック領域割当て
+
+create intmngt
+intmng ->> intmngt: スレッド生成
+activate intmngt
+main <-- intmng:
+deactivate intmng
+
+libmk <- intmngt: 割込み監視開始(COM1)
+activate libmk
+libmk --> intmngt:
+deactivate libmk
+
+libmk <- intmngt: 割込み監視開始(COM2)
+activate libmk
+libmk --> intmngt:
+deactivate libmk
+
+libmk <- intmngt: 割込み有効化(COM1)
+activate libmk
+libmk --> intmngt
+deactivate libmk
+
+libmk <- intmngt: 割込み有効化(COM2)
+activate libmk
+libmk --> intmngt:
+deactivate libmk
+
+group 割込み有効化
+    ioctrl <- intmngt: IER書込み\n(COM1, [3]=1,[2]=1,[1]=1,[0]=1)
+    activate ioctrl
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> intmngt:
+    deactivate ioctrl
+    ioctrl <- intmngt: MCR書込み(COM1, [3]=0)
+    activate ioctrl
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> intmngt:
+    deactivate ioctrl
+end group
+
+group 割込み有効化
+    ioctrl <- intmngt: IER書込み\n(COM2, [3]=1,[2]=1,[1]=1,[0]=1)
+    activate ioctrl
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> intmngt:
+    deactivate ioctrl
+    ioctrl <- intmngt: MCR書込み(COM2, [3]=0)
+    activate ioctrl
+    ref over ioctrl
+          入出力制御
+        デバイス書込み
+    end ref
+    ioctrl --> intmngt:
+    deactivate ioctrl
+end group
+
+loop
+    libmk <- intmngt: 割込み待ち
+    activate libmk
+    ...
+    libmk --> intmngt:
+    deactivate libmk
+
+    ref over intmngt
+        割込み処理
+    end ref
+end loop
+
+@enduml
+

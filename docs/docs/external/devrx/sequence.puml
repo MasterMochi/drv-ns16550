@@ -1,0 +1,38 @@
+@startuml
+
+participant "NS16550\n(COM1/2)" as dev
+participant "MochiKernel"       as kernel
+participant "drv-ns16550"       as drv
+participant mvfs
+
+dev -> kernel: 割込み
+activate kernel
+kernel -> drv:
+deactivate kernel
+activate drv
+
+dev --\ drv: 割込み要因(IIR)読込み
+
+alt 要因==データ受信 || 要因==受信タイムアウト || 要因==エラー
+
+    dev --\ drv: ステータス(LSR)読込み
+    loop ステータス==受信データ有り
+
+        dev --\ drv: 受信バッファ(RBR)読込み
+
+        opt ステータス!=エラー
+            drv -> drv: 受信バッファ追加
+        end opt
+
+        dev --\ drv: ステータス(LSR)読込み
+    end loop
+
+    opt 受信バッファ内データ数 > 0
+        drv -> mvfs: 読込みレディ通知
+    end opt
+
+    kernel <- drv: 割込み完了通知
+end alt
+deactivate drv
+
+@enduml

@@ -1,0 +1,23 @@
+@startuml
+
+participant "drv-ns16550" as drv
+participant mvfs
+
+drv <<- mvfs: デバイスファイルread要求
+activate drv
+
+break 未open
+    drv ->> mvfs: デバイスファイルread応答(失敗)
+end break
+
+drv -> drv: 受信バッファ取り出し
+
+alt データ有り
+    drv ->> mvfs: デバイスファイルread応答(成功)
+else データ無し
+    drv ->> mvfs: デバイスファイルread応答(失敗)
+    deactivate drv
+end alt
+
+@enduml
+

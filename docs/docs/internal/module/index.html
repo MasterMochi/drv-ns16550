@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ja">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"><!-- IE互換モード回避 -->
+        <meta name="author" content="Mochi">
+        <meta name="viewport" content="width=device-width,initial-scale=1"><!-- レスポンシブデザイン -->
+        <meta name="description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <meta name="format-detection" content="email=no,telephone=no,address=no">
+        <meta property="og:url" content="https://MasterMochi.github.io/drv-ns16550/">
+        <meta property="og:title" content="MLib">
+        <meta property="og:type" content="website">
+        <meta property="og:description" content="drv-ns16550は、MochiKernel上で動作するNS16550互換シリアルポートドライバです。">
+        <!-- <meta property="og:image" content=""> -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@master_mochi">
+        <!-- <meta name="msapplication-TileImage" content="" --><!-- MSWIN8～ピン留め対応 -->
+        <meta name="msapplication-TitleColor" content="#424242"><!-- MSWIN8～ピン留め対応 -->
+        <link rel="stylesheet" href="../../../style.css">
+        <link rel="canonical" href="https://MasterMochi.github.io/drv-ns16550/">
+        <!-- <link rel="icon" href="" sizes="16x16" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="32x32" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="48x48" type="image/png"> -->
+        <!-- <link rel="icon" href="" sizes="62x62" type="image/png"> -->
+        <link href="https://fonts.googleapis.com/css?family=Cutive+Mono" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css?family=Sawarabi+Mincho" rel="stylesheet">
+        <link href="https://use.fontawesome.com/releases/v5.5.0/css/all.css" rel="stylesheet" integrity="sha384-B4dIYHKNBt8Bc12p+WXckhzcICo0wtJAoU8YZTY5qE0Id1GSseTk6S+L3BlXeVIU" crossorigin="anonymous">
+        <title>drv-ns16550 - 内部仕様 - モジュール構成</title>
+    </head>
+    <body>
+        <a name="top"></a>
+        <div id="header">
+            <div id="menu">
+                <a href="../../../index.html"><div id="logo">drv-ns16550</div></a>
+                <a href="../../index.html"><div>Docs</div></a>
+            </div>
+        </div>
+        <div id="crumb">
+            <ol itemscope itemtype="http://schema.org/BreadcrumbList">
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../../index.html"><span itemprop="name">Home</span></a>
+                    <meta itemprop="position" content="1">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html"><span itemprop="name">Docs</span></a>
+                    <meta itemprop="position" content="2">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="../../index.html#internal"><span itemprop="name">内部仕様</span></a>
+                    <meta itemprop="position" content="3">
+                </li>
+                <li itemprop="itemListElement" itemscope itemtype="http://schema.org/ListItem">
+                    <a itemprop="item" href="./index.html"><span itemprop="name">モジュール構成</span></a>
+                    <meta itemprop="position" content="4">
+                </li>
+            </ol>
+        </div>
+        <div id="content">
+            <div>
+                <h1>モジュール構成</h1>
+                <p>drv-ns16550のモジュール構成を以下に示す。</p>
+                <br>
+                <div class="center"><img src="module.png"></div>
+                <br>
+                <table>
+                    <tr>
+                        <td class="title" rowspan="2">#</td>
+                        <td class="title" colspan="2">モジュール名</td>
+                        <td class="title" rowspan="2">動作<br>スレッド</td>
+                        <td class="title" rowspan="2" width="400">概要</td>
+                    </tr>
+                    <tr>
+                        <td class="title">和名</td>
+                        <td class="title">英名</td>
+                    </tr>
+                    <tr>
+                        <td class="center">1</td>
+                        <td class="center">メイン</td>
+                        <td class="center">main</td>
+                        <td class="center">メイン<br>スレッド</td>
+                        <td>起動時に各モジュールを初期化する。</td>
+                    </tr>
+                    <tr>
+                        <td class="center">2</td>
+                        <td class="center">入出力<br>制御</td>
+                        <td class="center">Ioctrl</td>
+                        <td class="center">全て</td>
+                        <td>NS16550への各種レジスタ読み書きを直接行う。</td>
+                    </tr>
+                    <tr>
+                        <td class="center">3</td>
+                        <td class="center">バッファ<br>管理</td>
+                        <td class="center">Bufmng</td>
+                        <td class="center">全て</td>
+                        <td>転送データと受信データのバッファを管理する。</td>
+                    </tr>
+                    <tr>
+                        <td class="center">4</td>
+                        <td class="center">割込み<br>管理</td>
+                        <td class="center">Intmng</td>
+                        <td class="center">割込み管理<br>スレッド</td>
+                        <td>NS16550からの割込みを監視し、割込み発生時は割込み要因を判定して転送制御モジュール機能または受信制御モジュール機能を呼び出す。</td>
+                    </tr>
+                    <tr>
+                        <td class="center">5</td>
+                        <td class="center">デバイス<br>ファイル<br>管理</td>
+                        <td class="center">Filemng</td>
+                        <td class="center">メイン<br>スレッド</td>
+                        <td>デバイスファイルを作成し、デバイスファイルの操作要求を受け付けて処理を行う。また、デバイスファイルの読書レディ状態を通知する。</td>
+                    </tr>
+                    <tr>
+                        <td class="center">6</td>
+                        <td class="center">受信制御</td>
+                        <td class="center">Rxctrl</td>
+                        <td class="center">割込み管理<br>スレッド</td>
+                        <td>入出力制御モジュール機能を用いてNS16550からデータを取得し、バッファ管理モジュール機能を用いて受信バッファにデータを追加する。受信バッファにデータを追加した際に読込み可能であることをデバイスファイル管理モジュールに通知する。</td>
+                    </tr>
+                    <tr>
+                        <td class="center">7</td>
+                        <td class="center">転送制御</td>
+                        <td class="center">Txctrl</td>
+                        <td class="center">メイン<br>スレッド</td>
+                        <td>バッファ管理モジュールから転送するデータを取得して入出力制御モジュール機能を用いてNS16550にデータを書き込む。転送バッファからデータを取得した際に書込み可能であることをデバイスファイル管理モジュールに通知する。</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="totop"><a href="#top">▲上へ</a></div>
+        </div>
+        <div id="footer">
+            <div id="copyright">
+                Copyright &copy 2020 Mochi. All rights reserved.
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,68 @@
+@startuml
+
+box "drv-ns16550"
+    participant "デバイス\nファイル管理" as filemng
+    participant "バッファ管理"           as bufmng
+end box
+participant "MLib"               as mlib
+participant "mvfs\n(ライブラリ)" as libmvfs
+
+activate mlib
+filemng <- mlib: Task22( COM1/2, サイズ )
+activate filemng
+
+filemng -> mlib: スピンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng -> filemng: バッファ確保( サイズ )
+alt 確保失敗
+    filemng -> libmvfs: デバイスファイルread応答(失敗)
+    activate libmvfs
+    filemng <-- libmvfs:
+    deactivate libmvfs
+
+else 確保成功
+    filemng -> bufmng: バッファ取出\n    ( COM1/2, 受信, サイズ )
+    activate bufmng
+    ref over bufmng
+        バッファ管理
+        バッファ取出
+    end ref
+    filemng <-- bufmng:
+    deactivate bufmng
+
+    alt 取出サイズ == 読込サイズ
+        filemng -> libmvfs: デバイスファイルread応答(成功, 読込レディ)
+        activate libmvfs
+        filemng <-- libmvfs:
+        deactivate libmvfs
+
+        filemng -> filemng: 通知状態更新
+
+    else 取出サイズ > 0
+        filemng -> libmvfs: デバイスファイルread応答(成功)
+        activate libmvfs
+        filemng <-- libmvfs:
+        deactivate libmvfs
+
+        filemng -> filemng: 通知状態更新
+
+    else 取出サイズ == 0
+        filemng -> libmvfs: デバイスファイルread応答(失敗)
+        activate libmvfs
+        filemng <-- libmvfs:
+        deactivate libmvfs
+    end alt
+end alt
+
+filemng -> mlib: スピンアンロック( COM1/2 )
+activate mlib
+filemng <-- mlib:
+deactivate mlib
+
+filemng --> mlib:
+deactivate filemng
+
+@enduml

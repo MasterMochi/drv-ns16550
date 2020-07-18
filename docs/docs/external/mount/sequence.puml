@@ -1,0 +1,33 @@
+@startuml
+
+participant "drv-ns16550" as drv
+participant mvfs
+
+activate drv
+
+drv ->> mvfs: デバイスファイル作成( "/serial1" )
+activate mvfs
+drv <<-- mvfs:
+deactivate mvfs
+
+drv ->> mvfs: デバイスファイル作成( "/serial2" )
+activate mvfs
+drv <<-- mvfs:
+deactivate mvfs
+
+drv -> drv: デバイスファイル操作要求待ち合わせ
+deactivate drv
+
+...
+
+drv <<- mvfs: VfsOpen/VfsRead/VfsWrite/VfsClose
+activate drv
+
+ref over drv
+    デバイスファイルopen要求処理機能
+    デバイスファイルread要求処理機能
+    デバイスファイルwrite要求処理機能
+    デバイスファイルclose要求処理機能
+end ref
+
+@enduml

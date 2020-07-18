@@ -1,0 +1,79 @@
+@startuml
+
+participant "Mochi\nKernel" as kernel
+box "drv-ns16550"
+    participant "メイン"                   as main
+    participant "入出力\n制御"             as ioctrl
+    participant "バッファ\n管理"           as bufmng
+    participant "受信制御"                 as rxctrl
+    participant "転送制御"                 as txctrl
+    participant "デバイス\nファイル\n管理" as filemng
+    participant "割込み\n管理"             as intmng
+end box
+
+kernel -> main: 起動
+activate main
+
+main -> ioctrl: 初期化
+activate ioctrl
+ref over ioctrl
+    入出力制御
+    　初期化
+end ref
+main <-- ioctrl:
+deactivate ioctrl
+
+main -> bufmng: 初期化
+activate bufmng
+ref over bufmng
+    バッファ管理
+    　 初期化
+end ref
+main <-- bufmng:
+deactivate bufmng
+
+main -> rxctrl: 初期化
+activate rxctrl
+ref over rxctrl
+    受信制御 初期化
+end ref
+main <-- rxctrl
+deactivate rxctrl
+
+main -> txctrl: 初期化
+activate txctrl
+ref over txctrl
+    転送制御 初期化
+end ref
+main <-- txctrl
+deactivate txctrl
+
+main -> filemng: 初期化
+activate filemng
+ref over filemng
+    　デバイス
+    ファイル管理
+    　 初期化
+end ref
+main <-- filemng:
+deactivate filemng
+
+main -> intmng: 初期化
+activate intmng
+ref over intmng
+    割込み管理
+    　初期化
+end ref
+main <-- intmng:
+deactivate intmng
+
+main -> filemng: デバイスファイル操作要求待ち合わせ
+activate filemng
+ref over filemng
+           デバイスファイル管理
+    デバイスファイル操作要求待ち合わせ
+end ref
+main <-- filemng:
+deactivate filemng
+
+@enduml

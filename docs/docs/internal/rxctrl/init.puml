@@ -1,0 +1,19 @@
+@startuml
+
+box "drv-ns16550"
+    participant "メイン"   as main
+    participant "受信制御" as rxctrl
+end box
+
+activate main
+ref over main
+    メイン
+    初期化
+end ref
+
+main -> rxctrl: 初期化
+activate rxctrl
+main <-- rxctrl:
+deactivate rxctrl
+
+@enduml
