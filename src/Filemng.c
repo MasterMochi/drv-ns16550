@@ -1,7 +1,7 @@
 /******************************************************************************/
 /*                                                                            */
 /* src/Filemng.c                                                              */
-/*                                                                 2020/07/18 */
+/*                                                                 2020/07/19 */
 /* Copyright (C) 2020 Mochi.                                                  */
 /*                                                                            */
 /******************************************************************************/
@@ -81,11 +81,11 @@ static NS16550ComNo_t ConvertGlobalFD( uint32_t globalFD );
 /* デバイスファイル作成 */
 static void CreateFile( char *pPath );
 /* 状態遷移タスク */
-static MLibState_t DoTask11( void *pArg );
-static MLibState_t DoTask12( void *pArg );
-static MLibState_t DoTask22( void *pArg );
-static MLibState_t DoTask32( void *pArg );
-static MLibState_t DoTask42( void *pArg );
+static MLibStateNo_t DoTask11( void *pArg );
+static MLibStateNo_t DoTask12( void *pArg );
+static MLibStateNo_t DoTask22( void *pArg );
+static MLibStateNo_t DoTask32( void *pArg );
+static MLibStateNo_t DoTask42( void *pArg );
 /* デバイスファイルclose要求 */
 static void DoVfsClose( uint32_t globalFD );
 /* デバイスファイルopen要求 */
@@ -134,7 +134,7 @@ static char *gpPath[ NS16550_COM_NUM ] = { CONFIG_FILEPATH_SERIAL1,
 /** スピンロック */
 static MLibSpin_t gLock[ NS16550_COM_NUM ];
 /** 状態遷移 */
-static MLibStateHandle_t gState[ NS16550_COM_NUM ];
+static MLibState_t gState[ NS16550_COM_NUM ];
 /** 状態遷移表 */
 static const MLibStateTransition_t gStt[] =
     {
@@ -369,7 +369,7 @@ static void CreateFile( char *pPath )
  * @retval      STATE_OPENED open中状態
  */
 /******************************************************************************/
-static MLibState_t DoTask11( void *pArg )
+static MLibStateNo_t DoTask11( void *pArg )
 {
     paramVfsOpen_t *pParam; /* パラメータ */
 
@@ -400,7 +400,7 @@ static MLibState_t DoTask11( void *pArg )
  * @retval      STATE_OPENED open中状態
  */
 /******************************************************************************/
-static MLibState_t DoTask12( void *pArg )
+static MLibStateNo_t DoTask12( void *pArg )
 {
     paramVfsOpen_t *pParam; /* パラメータ */
 
@@ -426,7 +426,7 @@ static MLibState_t DoTask12( void *pArg )
  * @retval      STATE_OPENED open中状態
  */
 /******************************************************************************/
-static MLibState_t DoTask22( void *pArg )
+static MLibStateNo_t DoTask22( void *pArg )
 {
     size_t         size;        /* 読込み実施サイズ */
     uint8_t        *pBuffer;    /* バッファ         */
@@ -534,7 +534,7 @@ static MLibState_t DoTask22( void *pArg )
  * @retval      STATE_OPENED open中状態
  */
 /******************************************************************************/
-static MLibState_t DoTask32( void *pArg )
+static MLibStateNo_t DoTask32( void *pArg )
 {
     size_t          size;       /* 書込み実施サイズ */
     paramVfsWrite_t *pParam;    /* パラメータ       */
@@ -609,7 +609,7 @@ static MLibState_t DoTask32( void *pArg )
  * @retval      STATE_INIT 未open状態(初期状態)
  */
 /******************************************************************************/
-static MLibState_t DoTask42( void *pArg )
+static MLibStateNo_t DoTask42( void *pArg )
 {
     paramVfsClose_t *pParam;    /* パラメータ */
 
@@ -641,16 +641,16 @@ static MLibState_t DoTask42( void *pArg )
 /******************************************************************************/
 static void DoVfsClose( uint32_t globalFD )
 {
-    uint32_t        errMLib;    /* MLibエラー要因   */
+    MLibErr_t       errMLib;    /* MLibエラー要因   */
     MLibRet_t       retMLib;    /* MLib関数戻り値   */
-    MLibState_t     prevState;  /* 遷移前状態       */
-    MLibState_t     nextState;  /* 遷移後状態       */
+    MLibStateNo_t   prevState;  /* 遷移前状態       */
+    MLibStateNo_t   nextState;  /* 遷移後状態       */
     NS16550ComNo_t  comNo;      /* デバイス識別番号 */
     paramVfsClose_t param;      /* パラメータ       */
 
     /* 初期化 */
-    errMLib   = MLIB_STATE_ERR_NONE;
-    retMLib   = MLIB_SUCCESS;
+    errMLib   = MLIB_ERR_NONE;
+    retMLib   = MLIB_RET_FAILURE;
     prevState = MLIB_STATE_NULL;
     nextState = MLIB_STATE_NULL;
     comNo     = NS16550_COM_NULL;
@@ -686,7 +686,7 @@ static void DoVfsClose( uint32_t globalFD )
                              &errMLib              );
 
     /* 実行結果判定 */
-    if ( retMLib != MLIB_SUCCESS ) {
+    if ( retMLib != MLIB_RET_SUCCESS ) {
         /* 失敗 */
 
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%X, err=%X", retMLib, errMLib );
@@ -721,16 +721,16 @@ static void DoVfsOpen( MkPid_t    pid,
                        uint32_t   globalFD,
                        const char *pPath    )
 {
-    uint32_t       errMLib;     /* MLibエラー要因   */
+    MLibErr_t      errMLib;     /* MLibエラー要因   */
     MLibRet_t      retMLib;     /* MLib戻り値       */
-    MLibState_t    prevState;   /* 遷移前状態       */
-    MLibState_t    nextState;   /* 遷移後状態       */
+    MLibStateNo_t  prevState;   /* 遷移前状態       */
+    MLibStateNo_t  nextState;   /* 遷移後状態       */
     NS16550ComNo_t comNo;       /* デバイス識別番号 */
     paramVfsOpen_t param;       /* パラメータ       */
 
     /* 初期化 */
-    errMLib   = MLIB_STATE_ERR_NONE;
-    retMLib   = MLIB_FAILURE;
+    errMLib   = MLIB_ERR_NONE;
+    retMLib   = MLIB_RET_FAILURE;
     prevState = MLIB_STATE_NULL;
     nextState = MLIB_STATE_NULL;
     comNo     = NS16550_COM_NULL;
@@ -779,7 +779,7 @@ static void DoVfsOpen( MkPid_t    pid,
                              &errMLib              );
 
     /* 実行結果判定 */
-    if ( retMLib != MLIB_SUCCESS ) {
+    if ( retMLib != MLIB_RET_SUCCESS ) {
         /* 失敗 */
 
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%X, err=%X", retMLib, errMLib );
@@ -815,16 +815,16 @@ static void DoVfsRead( uint32_t globalFD,
                        uint64_t readIdx,
                        size_t   size      )
 {
-    uint32_t       errMLib;     /* MLibエラー要因   */
+    MLibErr_t      errMLib;     /* MLibエラー要因   */
     MLibRet_t      retMLib;     /* MLib関数戻り値   */
-    MLibState_t    prevState;   /* 遷移前状態       */
-    MLibState_t    nextState;   /* 遷移後状態       */
+    MLibStateNo_t  prevState;   /* 遷移前状態       */
+    MLibStateNo_t  nextState;   /* 遷移後状態       */
     NS16550ComNo_t comNo;       /* デバイス識別番号 */
     paramVfsRead_t param;       /* パラメータ       */
 
     /* 初期化 */
-    errMLib   = MLIB_STATE_ERR_NONE;
-    retMLib   = MLIB_SUCCESS;
+    errMLib   = MLIB_ERR_NONE;
+    retMLib   = MLIB_RET_FAILURE;
     prevState = MLIB_STATE_NULL;
     nextState = MLIB_STATE_NULL;
     comNo     = NS16550_COM_NULL;
@@ -869,7 +869,7 @@ static void DoVfsRead( uint32_t globalFD,
                              &errMLib              );
 
     /* 実行結果判定 */
-    if ( retMLib != MLIB_SUCCESS ) {
+    if ( retMLib != MLIB_RET_SUCCESS ) {
         /* 失敗 */
 
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%X, err=%X", retMLib, errMLib );
@@ -907,16 +907,16 @@ static void DoVfsWrite( uint32_t globalFD,
                         void     *pBuffer,
                         size_t   size      )
 {
-    uint32_t        errMLib;    /* MLibエラー要因   */
+    MLibErr_t       errMLib;    /* MLibエラー要因   */
     MLibRet_t       retMLib;    /* MLib関数戻り値   */
-    MLibState_t     prevState;  /* 遷移前状態       */
-    MLibState_t     nextState;  /* 遷移後状態       */
+    MLibStateNo_t   prevState;  /* 遷移前状態       */
+    MLibStateNo_t   nextState;  /* 遷移後状態       */
     NS16550ComNo_t  comNo;      /* デバイス識別番号 */
     paramVfsWrite_t param;      /* パラメータ       */
 
     /* 初期化 */
-    errMLib   = MLIB_STATE_ERR_NONE;
-    retMLib   = MLIB_SUCCESS;
+    errMLib   = MLIB_ERR_NONE;
+    retMLib   = MLIB_RET_FAILURE;
     prevState = MLIB_STATE_NULL;
     nextState = MLIB_STATE_NULL;
     comNo     = NS16550_COM_NULL;
@@ -962,7 +962,7 @@ static void DoVfsWrite( uint32_t globalFD,
                              &errMLib              );
 
     /* 実行結果判定 */
-    if ( retMLib != MLIB_SUCCESS ) {
+    if ( retMLib != MLIB_RET_SUCCESS ) {
         /* 失敗 */
 
         DEBUG_LOG_ERR( "MLibStateExec(): ret=%X, err=%X", retMLib, errMLib );
