@@ -225,11 +225,11 @@ void FilemngUpdateReadyWrite( NS16550ComNo_t comNo )
     MLibSpinLock( &( gLock[ comNo ] ), NULL );
 
     /* レディ通知状態判定 */
-    if ( ( gReady[ comNo ] & MVFS_READY_READ ) == 0 ) {
+    if ( ( gReady[ comNo ] & MVFS_READY_WRITE ) == 0 ) {
         /* 書込レディ未通知 */
 
         /* レディ通知状態更新 */
-        gReady[ comNo ] |= MVFS_READY_READ;
+        gReady[ comNo ] |= MVFS_READY_WRITE;
 
         /* 読書レディ状態通知 */
         SendVfsReadyNtc( gpPath[ comNo ], gReady[ comNo ] );
