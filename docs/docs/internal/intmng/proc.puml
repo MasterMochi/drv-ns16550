@@ -25,7 +25,7 @@ loop 割込み番号毎
         ioctrl --> intmng:
         deactivate ioctrl
 
-        alt ( IIR & 0xF ) == 0x02 ※転送バッファ空
+        alt ( IIR & 0xE ) == 0x02 ※転送バッファ空
             kernel <- intmng: 割込み完了通知( IRQ4 )
             activate kernel
             kernel --> intmng:
@@ -40,7 +40,7 @@ loop 割込み番号毎
             intmng <-- txctrl:
             deactivate txctrl
 
-        else ( ( IIR & 0xF ) == 0x04 ) || ※データ受信\n ( ( IIR & 0xF ) == 0x06 ) || ※エラー\n ( ( IIR & 0xF ) == 0x0C )    ※受信タイムアウト
+        else ( ( IIR & 0xE ) == 0x04 ) || ※データ受信\n ( ( IIR & 0xE ) == 0x06 ) || ※エラー\n ( ( IIR & 0xE ) == 0x0C )    ※受信タイムアウト
             intmng -> rxctrl: 受信( COM1 )
             activate rxctrl
             ref over rxctrl
@@ -50,6 +50,12 @@ loop 割込み番号毎
             intmng <-- rxctrl
             deactivate rxctrl
 
+            kernel <- intmng: 割込み完了通知( IRQ4 )
+            activate kernel
+            kernel --> intmng:
+            deactivate kernel
+
+        else ( IIR & 0xE ) == 0x00
             kernel <- intmng: 割込み完了通知( IRQ4 )
             activate kernel
             kernel --> intmng:
@@ -68,7 +74,7 @@ loop 割込み番号毎
         ioctrl --> intmng:
         deactivate ioctrl
 
-        alt ( IIR & 0xF ) == 0x02 ※転送バッファ空
+        alt ( IIR & 0xE ) == 0x02 ※転送バッファ空
             kernel <- intmng: 割込み完了通知( IRQ3 )
             activate kernel
             kernel --> intmng:
@@ -83,7 +89,7 @@ loop 割込み番号毎
             intmng <-- txctrl:
             deactivate txctrl
 
-        else ( ( IIR & 0xF ) == 0x04 ) || ※データ受信\n ( ( IIR & 0xF ) == 0x06 ) || ※エラー\n ( ( IIR & 0xF ) == 0x0C )    ※受信タイムアウト
+        else ( ( IIR & 0xE ) == 0x04 ) || ※データ受信\n ( ( IIR & 0xE ) == 0x06 ) || ※エラー\n ( ( IIR & 0xE ) == 0x0C )    ※受信タイムアウト
             intmng -> rxctrl: 受信( COM2 )
             activate rxctrl
             ref over rxctrl
@@ -97,6 +103,13 @@ loop 割込み番号毎
             activate kernel
             kernel --> intmng:
             deactivate kernel
+
+        else ( IIR & 0xE ) == 0x00
+            kernel <- intmng: 割込み完了通知( IRQ3 )
+            activate kernel
+            kernel --> intmng:
+            deactivate kernel
+
         end alt
     end alt
 end loop

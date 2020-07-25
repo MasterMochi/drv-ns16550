@@ -1,7 +1,7 @@
 /******************************************************************************/
 /*                                                                            */
 /* src/Intmng.c                                                               */
-/*                                                                 2020/07/18 */
+/*                                                                 2020/07/25 */
 /* Copyright (C) 2020 Mochi.                                                  */
 /*                                                                            */
 /******************************************************************************/
@@ -188,6 +188,12 @@ static void ProcInterrupt( NS16550ComNo_t comNo,
                            uint8_t        irqNo  )
 {
     uint8_t iir;    /* 割込み要因レジスタ値 */
+    MkErr_t errMk;  /* カーネルエラー要因   */
+    MkRet_t retMk;  /* カーネル戻り値       */
+
+    /* 初期化 */
+    errMk = MK_ERR_NONE;
+    retMk = MK_RET_FAILURE;
 
     /* 割込み要因読込み */
     iir = IoctrlInIIR( comNo );
@@ -216,6 +222,21 @@ static void ProcInterrupt( NS16550ComNo_t comNo,
             /* 不明 */
 
             DEBUG_LOG_ERR( "Invalid IIR: %X", iir & NS16550_IIR_ID );
+
+            /* 割込み完了通知 */
+            retMk = LibMkIntComplete( irqNo, &errMk );
+
+            /* 通知結果判定 */
+            if ( retMk != MK_RET_SUCCESS ) {
+                /* 失敗 */
+
+                DEBUG_LOG_ERR(
+                    "LibMkIntComplete(): ret=%X, err=%X",
+                    retMk,
+                    errMk
+                );
+            }
+
             break;
     }
 
