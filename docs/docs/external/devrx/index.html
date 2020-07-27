@@ -58,63 +58,12 @@
         <div id="content">
             <div>
                 <h1>デバイス受信機能</h1>
-                <p>デバイスからの割込みを契機にデバイスの受信バッファが空になるまでデータを読込み、drv-ns16550の受信バッファに追加する。受信バッファ内データ数が1つでもある場合は、mvfsに読込みレディ通知を行う。最後にkernelに割込み完了通知を行う。以下にシーケンス図を示す。</p>
+                <p>デバイスからの割込みを契機にデバイスの受信バッファが空になるまでデータを読込み、drv-ns16550の受信バッファに追加する。受信バッファ内データ数が1つでもある場合は、mvfsに読込みレディ通知を行う。以下にシーケンス図を示す。</p>
                 <br>
                 <div class="center">
                     シーケンス図<br>
                     <img src="sequence.png">
                 </div>
-            </div>
-            <div class="totop"><a href="#top">▲上へ</a></div>
-            <div>
-                <h1>割込み要因判定</h1>
-                <p>IIR(Interrupt Identifing Register)を読込み、割込みがデータ受信、受信タイムアウト、または、エラーによるものかを判定する。判定条件を以下に示す。</p>
-                <br>
-                <div class="center">割込み要因</div>
-                <table>
-                    <tr>
-                        <td class="title" colspan="2">I/O port</td>
-                        <td class="title" colspan="5">bit(dc=dont't care)</td>
-                        <td class="title" rowspan="2">割込み要因</td>
-                        <td class="title" rowspan="2">備考</td>
-                    </tr>
-                    <tr>
-                        <td class="title">COM1</td>
-                        <td class="title">COM2</td>
-                        <td class="title">7-4</td>
-                        <td class="title">3</td>
-                        <td class="title">2</td>
-                        <td class="title">1</td>
-                        <td class="title">0</td>
-                    </tr>
-                    <tr>
-                        <td class="center" rowspan="3">0x03FA</td>
-                        <td class="center" rowspan="3">0x02FA</td>
-                        <td class="center" rowspan="3">dc</td>
-                        <td class="center">0</td>
-                        <td class="center">1</td>
-                        <td class="center">0</td>
-                        <td class="center">0</td>
-                        <td>データ受信</td>
-                        <td>RBR読込みリセット</td>
-                    </tr>
-                    <tr>
-                        <td class="center">0</td>
-                        <td class="center">1</td>
-                        <td class="center">1</td>
-                        <td class="center">0</td>
-                        <td>エラー</td>
-                        <td>LSR読込みリセット</td>
-                    </tr>
-                    <tr>
-                        <td class="center">1</td>
-                        <td class="center">1</td>
-                        <td class="center">0</td>
-                        <td class="center">0</td>
-                        <td>受信タイムアウト</td>
-                        <td>RBR読込みリセット</td>
-                    </tr>
-                </table>
             </div>
             <div class="totop"><a href="#top">▲上へ</a></div>
             <div>
@@ -226,35 +175,6 @@
                     <tr>
                         <td class="title">3</td>
                         <td class="center">*pErrNo</td>
-                        <td class="center" colspan="2">エラー格納先変数ポインタ</td>
-                    </tr>
-                </table>
-            </div>
-            <div class="totop"><a href="#top">▲上へ</a></div>
-            <div>
-                <h1>割込み完了通知</h1>
-                <p>最後に、次の割り込みを受け付けられる様にMochiKernelに割込み完了通知を行う。割込み完了通知はMochiKernelライブラリのLibMkIntComplete()を用いて行う。設定するパラメータを以下に示す。</p>
-                <br>
-                <div class="center">LibMkIntComplete()の設定パラメータ</div>
-                <table>
-                    <tr>
-                        <td class="title" rowspan="2">#</td>
-                        <td class="title" rowspan="2">引数名</td>
-                        <td class="title" colspan="2">設定値</td>
-                    </tr>
-                    <tr>
-                        <td class="title">COM1</td>
-                        <td class="title">COM2</td>
-                    </tr>
-                    <tr>
-                        <td class="title">1</td>
-                        <td class="center">irqNo</td>
-                        <td class="center">LIBMK_INT_IRQ4</td>
-                        <td class="center">LIBMK_INT_IRQ3</td>
-                    </tr>
-                    <tr>
-                        <td class="title">2</td>
-                        <td class="center">*pErr</td>
                         <td class="center" colspan="2">エラー格納先変数ポインタ</td>
                     </tr>
                 </table>

@@ -66,8 +66,8 @@
                         <li><a href="#init-enable">割込み有効化</a></li>
                         <li><a href="#init-wait">割込み待ち合わせ</a></li></ol></li>
                     <li><a href="#proc">割込み処理</a><ol>
-                        <li><a href="#proc-iir">割込み要因判定</a></li>
                         <li><a href="#proc-eoi">割込み完了通知</a></li>
+                        <li><a href="#proc-iir">割込み要因判定</a></li>
                         <li><a href="#proc-tx">転送</a></li>
                         <li><a href="#proc-rx">受信</a></li></ol></li>
                 </ol>
@@ -159,11 +159,11 @@
                     <img src="proc.png">
                 </div>
                 <br>
-                <h2><a name="proc-iir">割込み要因判定</a></h2>
-                <p><a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の割込み要因判定、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の割込み要因判定を参照のこと。デバイスからの読込みは入出力制御モジュールの機能を用いて行う。</p>
-                <br><br>
                 <h2><a name="proc-eoi">割込み完了通知</a></h2>
                 <p><a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の割込み完了通知、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の割込み完了通知を参照。</p>
+                <br><br>
+                <h2><a name="proc-iir">割込み要因判定</a></h2>
+                <p><a href="../../external/devtx/index.html">外部仕様(デバイス転送機能)</a>の割込み要因判定、および、<a href="../../external/devrx/index.html">外部仕様(デバイス受信機能)</a>の割込み要因判定を参照のこと。デバイスからの読込みは入出力制御モジュールの機能を用いて行う。</p>
                 <br><br>
                 <h2><a name="proc-tx">転送</a></h2>
                 <p>割込み要因が転送バッファ空の場合は転送制御モジュールの転送機能を呼び出してデータ転送を行う。</p>

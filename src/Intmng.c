@@ -1,7 +1,7 @@
 /******************************************************************************/
 /*                                                                            */
 /* src/Intmng.c                                                               */
-/*                                                                 2020/07/25 */
+/*                                                                 2020/07/27 */
 /* Copyright (C) 2020 Mochi.                                                  */
 /*                                                                            */
 /******************************************************************************/
@@ -29,18 +29,14 @@
 /******************************************************************************/
 /* ローカル関数宣言                                                           */
 /******************************************************************************/
+/* 割込み完了 */
+static void CompInterrupt( uint8_t irq );
 /* 割込み設定初期化 */
 static void InitInterrupt( NS16550ComNo_t comNo,
                            uint8_t        irqNo  );
 /* 割込み処理 */
 static void ProcInterrupt( NS16550ComNo_t comNo,
                            uint8_t        irqNo  );
-/* 受信割込み処理 */
-static void ProcInterruptRx( NS16550ComNo_t comNo,
-                             uint8_t        irqNo  );
-/* 転送割込み処理 */
-static void ProcInterruptTx( NS16550ComNo_t comNo,
-                             uint8_t        irqNo  );
 /* 割込み管理スレッド */
 static void StartThread( void *pArg );
 /* 割込み待ち合わせ */
@@ -106,6 +102,41 @@ void IntmngInit( void )
 /******************************************************************************/
 /* ローカル関数定義                                                           */
 /******************************************************************************/
+/******************************************************************************/
+/**
+ * @brief       割込み完了
+ * @details     カーネルに割込み処理完了を通知する。
+ *
+ * @param[in]   irqNo 割込み番号
+ *                  - LIBMK_INT_IRQ3 IRQ3
+ *                  - LIBMK_INT_IRQ4 IRQ4
+ */
+/******************************************************************************/
+static void CompInterrupt( uint8_t irqNo )
+{
+    MkErr_t errMk;  /* カーネルエラー要因 */
+    MkRet_t retMk;  /* カーネル戻り値     */
+
+    /* 初期化 */
+    errMk = MK_ERR_NONE;
+    retMk = MK_RET_FAILURE;
+
+    DEBUG_LOG_TRC( "Complete interrupt: irq=%u", irqNo );
+
+    /* 割込み完了通知 */
+    retMk = LibMkIntComplete( irqNo, &errMk );
+
+    /* 通知結果判定 */
+    if ( retMk != MK_RET_SUCCESS ) {
+        /* 失敗 */
+
+        DEBUG_LOG_ERR( "LibMkIntComplete(): ret=%X, err=%X", retMk, errMk );
+    }
+
+    return;
+}
+
+
 /******************************************************************************/
 /**
  * @brief       割込み設定初期化
@@ -188,137 +219,52 @@ static void ProcInterrupt( NS16550ComNo_t comNo,
                            uint8_t        irqNo  )
 {
     uint8_t iir;    /* 割込み要因レジスタ値 */
-    MkErr_t errMk;  /* カーネルエラー要因   */
-    MkRet_t retMk;  /* カーネル戻り値       */
 
-    /* 初期化 */
-    errMk = MK_ERR_NONE;
-    retMk = MK_RET_FAILURE;
+    /* 割込み完了 */
+    CompInterrupt( irqNo );
 
     /* 割込み要因読込み */
     iir = IoctrlInIIR( comNo );
 
-    /* 割込み要因判定 */
-    switch ( iir & NS16550_IIR_ID ) {
-        case NS16550_IIR_ID_THR:
-            /* 転送バッファ空 */
+    /* 割込み保留中の間繰り返し */
+    while ( ( iir & NS16550_IIR_PENDING ) == NS16550_IIR_PENDING_YES ) {
+        /* 割込み要因判定 */
+        switch ( iir & NS16550_IIR_ID ) {
+            case NS16550_IIR_ID_THR:
+                /* 転送バッファ空 */
 
-            ProcInterruptTx( comNo, irqNo );
-            break;
+                /* 転送 */
+                TxctrlDo( comNo );
+                break;
 
-        case NS16550_IIR_ID_RBR:
-            /* データ受信 */
-        case NS16550_IIR_ID_RBR_TO:
-            /* データ受信タイムアウト割込み */
-        case NS16550_IIR_ID_LSR:
-            /* エラー */
+            case NS16550_IIR_ID_RBR:
+                /* データ受信 */
+            case NS16550_IIR_ID_RBR_TO:
+                /* データ受信タイムアウト割込み */
+            case NS16550_IIR_ID_LSR:
+                /* エラー */
 
-            ProcInterruptRx( comNo, irqNo );
-            break;
+                /* 受信 */
+                RxctrlDo( comNo );
+                break;
 
-        case NS16550_IIR_ID_MSR:
-            /* MSR要因割込み *//* TODO */
-        default:
-            /* 不明 */
+            case NS16550_IIR_ID_MSR:
+                /* MSR要因割込み */
 
-            DEBUG_LOG_ERR( "Invalid IIR: %X", iir & NS16550_IIR_ID );
+                /* MSR読込み */
+                IoctrlInMSR( comNo );
+                break;
 
-            /* 割込み完了通知 */
-            retMk = LibMkIntComplete( irqNo, &errMk );
+            default:
+                /* 不明 */
 
-            /* 通知結果判定 */
-            if ( retMk != MK_RET_SUCCESS ) {
-                /* 失敗 */
+                DEBUG_LOG_ERR( "Invalid IIR: %X", iir & NS16550_IIR_ID );
+                break;
+        }
 
-                DEBUG_LOG_ERR(
-                    "LibMkIntComplete(): ret=%X, err=%X",
-                    retMk,
-                    errMk
-                );
-            }
-
-            break;
+        /* 割込み要因読込み */
+        iir = IoctrlInIIR( comNo );
     }
-
-    return;
-}
-
-
-/******************************************************************************/
-/**
- * @brief       受信割込み処理
- * @details     受信処理を行い、割込み完了をカーネルに通知する。
- *
- * @param[in]   comNo デバイス識別番号
- *                  - NS16550_COM1 COM1
- *                  - NS16550_COM2 COM2
- * @param[in]   irqNo 割込み番号
- *                  - LIBMK_INT_IRQ3 IRQ3
- *                  - LIBMK_INT_IRQ4 IRQ4
- */
-/******************************************************************************/
-static void ProcInterruptRx( NS16550ComNo_t comNo,
-                             uint8_t        irqNo  )
-{
-    MkErr_t errMk;  /* カーネルエラー要因 */
-    MkRet_t retMk;  /* カーネル戻り値     */
-
-    /* 初期化 */
-    errMk = MK_ERR_NONE;
-    retMk = MK_RET_FAILURE;
-
-    /* 受信 */
-    RxctrlDo( comNo );
-
-    /* 割込み完了通知 */
-    retMk = LibMkIntComplete( irqNo, &errMk );
-
-    /* 通知結果判定 */
-    if ( retMk != MK_RET_SUCCESS ) {
-        /* 失敗 */
-
-        DEBUG_LOG_ERR( "LibMkIntComplete(): ret=%X, err=%X", retMk, errMk );
-    }
-
-    return;
-}
-
-
-/******************************************************************************/
-/**
- * @brief       転送割込み処理
- * @details     割込み完了をカーネルに通知し、転送処理を行う。
- *
- * @param[in]   comNo デバイス識別番号
- *                  - NS16550_COM1 COM1
- *                  - NS16550_COM2 COM2
- * @param[in]   irqNo 割込み番号
- *                  - LIBMK_INT_IRQ3 IRQ3
- *                  - LIBMK_INT_IRQ4 IRQ4
- */
-/******************************************************************************/
-static void ProcInterruptTx( NS16550ComNo_t comNo,
-                             uint8_t        irqNo  )
-{
-    MkErr_t errMk;  /* カーネルエラー要因 */
-    MkRet_t retMk;  /* カーネル戻り値     */
-
-    /* 初期化 */
-    errMk = MK_ERR_NONE;
-    retMk = MK_RET_FAILURE;
-
-    /* 割込み完了通知 */
-    retMk = LibMkIntComplete( irqNo, &errMk );
-
-    /* 通知結果判定 */
-    if ( retMk != MK_RET_SUCCESS ) {
-        /* 失敗 */
-
-        DEBUG_LOG_ERR( "LibMkIntComplete(): ret=%X, err=%X", retMk, errMk );
-    }
-
-    /* 転送 */
-    TxctrlDo( comNo );
 
     return;
 }

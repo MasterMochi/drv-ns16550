@@ -1,9 +1,8 @@
 @startuml
 
-participant "NS16550\n(COM1)" as dev1
-participant "NS16550\n(COM2)" as dev2
-participant "MochiKernel"     as kernel
-participant "drv-ns16550"     as drv
+participant "NS16550\n(COM1/2)" as dev
+participant "MochiKernel"       as kernel
+participant "drv-ns16550"       as drv
 
 activate drv
 ref over drv
@@ -28,8 +27,8 @@ activate kernel
 kernel --> drv:
 deactivate kernel
 
-dev1 /-- drv: 割込み有効化
-dev2 /-- drv: 割込み有効化
+dev /-- drv: 割込み有効化(COM1)
+dev /-- drv: 割込み有効化(COM2)
 
 loop
     par
@@ -39,23 +38,35 @@ loop
 
         ...
     else
-        alt
-            dev1 -> kernel: 割込み
-        else
-            dev2 -> kernel: 割込み
-        end alt
+        dev -> kernel: 割込み
     end par
 
     kernel --> drv:
     deactivate kernel
     activate drv
 
-    ref over drv
-        デバイス転送機能
-    end ref
-    ref over drv
-        デバイス受信機能
-    end ref
+    kernel <- drv: 割込み完了通知
+    activate kernel
+    kernel --> drv:
+    deactivate kernel
+
+    dev --\ drv: 割込み要因読込み
+
+    loop 保留割込み有り
+        alt 要因 == 転送可能
+            ref over drv
+                デバイス転送機能
+            end ref
+        else 要因 == データ受信 ||\n 要因 == 受信タイムアウト||\n 要因 == LSR更新
+            ref over drv
+                デバイス受信機能
+            end ref
+        else 要因 == MSR更新
+            dev --\ drv: MSR読込み
+        end alt
+
+        dev --\ drv: 割込み要因読込み
+    end loop
 end loop
 
 @enduml

@@ -15,6 +15,11 @@ end ref
 
 loop 割込み番号毎
     alt 割込み番号 == IRQ4
+        kernel <- intmng: 割込み完了通知( IRQ4 )
+        activate kernel
+        kernel --> intmng:
+        deactivate kernel
+
         ioctrl <- intmng: IIR読込み( COM1 )
         activate ioctrl
         note right: 割込み要因読込み
@@ -25,45 +30,45 @@ loop 割込み番号毎
         ioctrl --> intmng:
         deactivate ioctrl
 
-        alt ( IIR & 0xE ) == 0x02 ※転送バッファ空
-            kernel <- intmng: 割込み完了通知( IRQ4 )
-            activate kernel
-            kernel --> intmng:
-            deactivate kernel
+        loop ( IIR & 0x01 ) == 0x00 ※保留割込み有り
+            alt ( IIR & 0x0E ) == 0x02 ※転送バッファ空
+                intmng -> txctrl: 転送( COM1 )
+                activate txctrl
+                ref over txctrl
+                    転送制御
+                      転送
+                end ref
+                intmng <-- txctrl:
+                deactivate txctrl
 
-            intmng -> txctrl: 転送( COM1 )
-            activate txctrl
-            ref over txctrl
-                転送制御
-                  転送
+            else ( ( IIR & 0x0E ) == 0x04 ) || ※データ受信\n ( ( IIR & 0x0E ) == 0x06 ) || ※エラー\n ( ( IIR & 0x0E ) == 0x0C )    ※受信タイムアウト
+                intmng -> rxctrl: 受信( COM1 )
+                activate rxctrl
+                ref over rxctrl
+                    受信制御
+                      受信
+                end ref
+                intmng <-- rxctrl
+                deactivate rxctrl
+            end alt
+
+            ioctrl <- intmng: IIR読込み( COM1 )
+            activate ioctrl
+            note right: 割込み要因読込み
+            ref over ioctrl
+                  入出力制御
+                デバイス読込み
             end ref
-            intmng <-- txctrl:
-            deactivate txctrl
-
-        else ( ( IIR & 0xE ) == 0x04 ) || ※データ受信\n ( ( IIR & 0xE ) == 0x06 ) || ※エラー\n ( ( IIR & 0xE ) == 0x0C )    ※受信タイムアウト
-            intmng -> rxctrl: 受信( COM1 )
-            activate rxctrl
-            ref over rxctrl
-                受信制御
-                  受信
-            end ref
-            intmng <-- rxctrl
-            deactivate rxctrl
-
-            kernel <- intmng: 割込み完了通知( IRQ4 )
-            activate kernel
-            kernel --> intmng:
-            deactivate kernel
-
-        else ( IIR & 0xE ) == 0x00
-            kernel <- intmng: 割込み完了通知( IRQ4 )
-            activate kernel
-            kernel --> intmng:
-            deactivate kernel
-
-        end alt
+            ioctrl --> intmng:
+            deactivate ioctrl
+        end loop
 
     else 割込み番号 == IRQ3
+        kernel <- intmng: 割込み完了通知( IRQ3 )
+        activate kernel
+        kernel --> intmng:
+        deactivate kernel
+
         ioctrl <- intmng: IIR読込み( COM2 )
         activate ioctrl
         note right: 割込み要因読込み
@@ -74,43 +79,39 @@ loop 割込み番号毎
         ioctrl --> intmng:
         deactivate ioctrl
 
-        alt ( IIR & 0xE ) == 0x02 ※転送バッファ空
-            kernel <- intmng: 割込み完了通知( IRQ3 )
-            activate kernel
-            kernel --> intmng:
-            deactivate kernel
+        loop ( IIR & 0x01 ) == 0x00 ※保留割込み有り
+            alt ( IIR & 0x0E ) == 0x02 ※転送バッファ空
+                intmng -> txctrl: 転送( COM2 )
+                activate txctrl
+                ref over txctrl
+                    転送制御
+                    転送処理
+                end ref
+                intmng <-- txctrl:
+                deactivate txctrl
 
-            intmng -> txctrl: 転送( COM2 )
-            activate txctrl
-            ref over txctrl
-                転送制御
-                転送処理
+            else ( ( IIR & 0x0E ) == 0x04 ) || ※データ受信\n ( ( IIR & 0x0E ) == 0x06 ) || ※エラー\n ( ( IIR & 0x0E ) == 0x0C )    ※受信タイムアウト
+                intmng -> rxctrl: 受信( COM2 )
+                activate rxctrl
+                ref over rxctrl
+                    受信制御
+                    受信処理
+                end ref
+                intmng <-- rxctrl
+                deactivate rxctrl
+
+            end alt
+
+            ioctrl <- intmng: IIR読込み( COM2 )
+            activate ioctrl
+            note right: 割込み要因読込み
+            ref over ioctrl
+                  入出力制御
+                デバイス読込み
             end ref
-            intmng <-- txctrl:
-            deactivate txctrl
-
-        else ( ( IIR & 0xE ) == 0x04 ) || ※データ受信\n ( ( IIR & 0xE ) == 0x06 ) || ※エラー\n ( ( IIR & 0xE ) == 0x0C )    ※受信タイムアウト
-            intmng -> rxctrl: 受信( COM2 )
-            activate rxctrl
-            ref over rxctrl
-                受信制御
-                受信処理
-            end ref
-            intmng <-- rxctrl
-            deactivate rxctrl
-
-            kernel <- intmng: 割込み完了通知( IRQ3 )
-            activate kernel
-            kernel --> intmng:
-            deactivate kernel
-
-        else ( IIR & 0xE ) == 0x00
-            kernel <- intmng: 割込み完了通知( IRQ3 )
-            activate kernel
-            kernel --> intmng:
-            deactivate kernel
-
-        end alt
+            ioctrl --> intmng:
+            deactivate ioctrl
+        end loop
     end alt
 end loop
 deactivate intmng
